@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "./lib/supabaseClient";
+import { createRide, getPendingRides, acceptRide } from "./services/rides.js";
+import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
+import WelcomeScreen from "./components/WelcomeScreen.jsx";
 
 const C = {
   bg: "#000000",
@@ -12,34 +16,28 @@ const C = {
 };
 
 function onlyDigits(s) {
-  return s.replace(/\D/g, "");
+  return s ? s.replace(/\D/g, "") : "";
+}
+
+function formatWhatsappUrl(phone, defaultMessage) {
+  if (!phone) return "#";
+  const digits = phone.replace(/\D/g, "");
+  const fullPhone = (digits.length === 10 || digits.length === 11) ? `55${digits}` : digits;
+  return `https://wa.me/${fullPhone}?text=${encodeURIComponent(defaultMessage)}`;
+}
+
+function calcTimeAgo(dateString, t) {
+  if (!dateString) return "";
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return t("timeJustNow", { defaultValue: "agora mesmo" });
+  return t("timeAgo", { time: `${mins} min`, defaultValue: `há ${mins} min` });
 }
 
 function Logo({ size = 40 }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: size * 0.24, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      <span style={{ color: "#000", fontWeight: 800, fontSize: size * 0.32, letterSpacing: -0.5 }}>B</span>
-    </div>
-  );
-}
-
-function SplashScreen({ onDone }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 1600);
-    return () => clearTimeout(t);
-  }, [onDone]);
-  return (
-    <div style={{ background: "#000", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-      <div style={{ animation: "splashIn 0.5s ease both" }}>
-        <div style={{ width: 84, height: 84, borderRadius: 20, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#000", fontWeight: 800, fontSize: 30, letterSpacing: -1 }}>B</span>
-        </div>
-      </div>
-      <div style={{ textAlign: "center", animation: "fadeInUp 0.5s ease 0.2s both" }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>BiciUber</h1>
-        <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.textMuted }}>o bicitáxi de Afuá, a um toque</p>
-      </div>
-      <p style={{ position: "absolute", bottom: 26, fontSize: 11, color: "#555" }}>criado por Herivelto Sarges</p>
+    <div style={{ width: size, height: size, borderRadius: size * 0.24, background: "#000", border: "1.5px solid #F2C94C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <BicitaxiIcon size={size * 0.65} color="#FFFFFF" />
     </div>
   );
 }
@@ -60,7 +58,7 @@ function RouteLine({ progress = 0.2 }) {
   return (
     <svg viewBox="0 0 320 70" style={{ width: "100%", height: 70 }}>
       <line x1="14" y1="35" x2="306" y2="35" stroke={C.border} strokeWidth="2" strokeDasharray="1 8" strokeLinecap="round" />
-      <circle cx="14" cy="35" r="6" fill="#fff" />
+      <circle cx="14" y1="35" r="6" fill="#fff" />
       <circle cx="306" cy="35" r="6" fill="none" stroke="#fff" strokeWidth="2" />
       <g style={{ transform: `translate(${14 + progress * 292}px, 35px)`, transition: "transform 0.4s ease-out" }}>
         <circle r="9" fill={C.online} />
@@ -95,40 +93,113 @@ const inputStyle = {
 
 // ---------------- PASSENGER ----------------
 function PassengerApp() {
-  const [stage, setStage] = useState("form");
+  const { t } = useTranslation();
+  const [stage, setStage] = useState("form"); // "form" | "requested"
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [pickup, setPickup] = useState("");
   const [dest, setDest] = useState("");
-  const [progress, setProgress] = useState(0.08);
-  const timerRef = useRef(null);
+  const [count, setCount] = useState(1);
+  const [hasLuggage, setHasLuggage] = useState(false);
+  const [notes, setNotes] = useState("");
 
-  const requestRide = () => {
-    if (!pickup || !dest) return;
-    setStage("searching");
-    setTimeout(() => setStage("matched"), 1600);
-  };
+  const [activeRide, setActiveRide] = useState(null);
 
+  // Restauração de Sessão (biciuber-active-ride)
   useEffect(() => {
-    if (stage === "onboard") {
-      timerRef.current = setInterval(() => {
-        setProgress((p) => {
-          const next = p + 0.06;
-          if (next >= 1) {
-            clearInterval(timerRef.current);
-            setStage("done");
-            return 1;
-          }
-          return next;
-        });
-      }, 300);
-      return () => clearInterval(timerRef.current);
+    try {
+      const saved = localStorage.getItem("biciuber-active-ride");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (
+          parsed &&
+          parsed.status === "REQUESTED" &&
+          parsed.expiresAt &&
+          new Date(parsed.expiresAt) > new Date()
+        ) {
+          setActiveRide(parsed);
+          setStage("requested");
+        } else {
+          localStorage.removeItem("biciuber-active-ride");
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao ler localStorage biciuber-active-ride:", e);
+      localStorage.removeItem("biciuber-active-ride");
     }
-  }, [stage]);
+  }, []);
 
-  const reset = () => {
-    setStage("form");
-    setPickup("");
-    setDest("");
-    setProgress(0.08);
+  const handleFormSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setErrorMsg("");
+
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedPickup = pickup.trim();
+    const trimmedDest = dest.trim();
+
+    if (!trimmedName) {
+      setErrorMsg(t("errorNameRequired", { defaultValue: "Informe seu nome." }));
+      return;
+    }
+    if (!trimmedPhone) {
+      setErrorMsg(t("errorPhoneRequired", { defaultValue: "Informe seu telefone." }));
+      return;
+    }
+    if (!trimmedPickup) {
+      setErrorMsg(t("errorPickupRequired", { defaultValue: "Informe o ponto de partida." }));
+      return;
+    }
+    if (!trimmedDest) {
+      setErrorMsg(t("errorDestinationRequired", { defaultValue: "Informe o destino." }));
+      return;
+    }
+    const countNum = Number(count);
+    if (isNaN(countNum) || countNum < 1 || countNum > 6) {
+      setErrorMsg(t("errorPassengerCountRange", { defaultValue: "Escolha entre 1 e 6 passageiros." }));
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const ride = await createRide({
+        passenger_name: trimmedName,
+        passenger_phone: trimmedPhone,
+        pickup_description: trimmedPickup,
+        destination_description: trimmedDest,
+        passenger_count: countNum,
+        has_luggage: Boolean(hasLuggage),
+        notes: notes ? notes.trim() : "",
+      });
+
+      const activeData = {
+        id: ride.id,
+        publicTrackingToken: ride.public_tracking_token,
+        status: ride.status,
+        createdAt: ride.created_at,
+        expiresAt: ride.expires_at,
+        passengerName: trimmedName,
+        passengerPhone: trimmedPhone,
+        pickupDescription: trimmedPickup,
+        destinationDescription: trimmedDest,
+        passengerCount: countNum,
+        hasLuggage: Boolean(hasLuggage),
+        notes: notes ? notes.trim() : "",
+      };
+
+      localStorage.setItem("biciuber-active-ride", JSON.stringify(activeData));
+      setActiveRide(activeData);
+      setStage("requested");
+    } catch (err) {
+      console.error("Erro técnico ao criar corrida:", err);
+      setErrorMsg(t("errorCreateRideFailed", { defaultValue: "Não foi possível solicitar o bicitáxi. Tente novamente." }));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -136,57 +207,216 @@ function PassengerApp() {
       <TopBar subtitle="Passageiro" />
       <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
         {stage === "form" && (
-          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <form onSubmit={handleFormSubmit} className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>Onde você tá e pra onde vai?</p>
+            
             <div>
-              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>Partida</p>
-              <input style={inputStyle} value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="Ex: perto da igreja matriz" />
+              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
+                {t("passengerName", { defaultValue: "Seu nome" })} *
+              </p>
+              <input
+                style={inputStyle}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Maria Santos"
+                disabled={submitting}
+              />
             </div>
+
             <div>
-              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>Destino</p>
-              <input style={inputStyle} value={dest} onChange={(e) => setDest(e.target.value)} placeholder="Ex: porto do mercado" />
+              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
+                {t("passengerPhone", { defaultValue: "Seu telefone" })} *
+              </p>
+              <input
+                style={inputStyle}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ex: 91 98123-4567"
+                inputMode="tel"
+                disabled={submitting}
+              />
             </div>
-            <div style={{ marginTop: 8 }}>
-              <Button onClick={requestRide} disabled={!pickup || !dest}>Chamar bicitáxi</Button>
+
+            <div>
+              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
+                {t("pickupLocation", { defaultValue: "Ponto de partida" })} *
+              </p>
+              <input
+                style={inputStyle}
+                value={pickup}
+                onChange={(e) => setPickup(e.target.value)}
+                placeholder="Ex: perto da igreja matriz"
+                disabled={submitting}
+              />
             </div>
-          </div>
-        )}
 
-        {stage === "searching" && (
-          <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "60px 0" }}>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", border: `3px solid ${C.border}`, borderTopColor: "#fff", animation: "spin 0.8s linear infinite" }} />
-            <p style={{ fontSize: 14.5, fontWeight: 600 }}>Procurando um bicitaxista...</p>
-          </div>
-        )}
+            <div>
+              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
+                {t("destinationLocation", { defaultValue: "Destino" })} *
+              </p>
+              <input
+                style={inputStyle}
+                value={dest}
+                onChange={(e) => setDest(e.target.value)}
+                placeholder="Ex: porto do mercado"
+                disabled={submitting}
+              />
+            </div>
 
-        {(stage === "matched" || stage === "onboard" || stage === "done") && (
-          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#000" }}>ZR</div>
+            <div style={{ display: "flex", gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>Zé Raimundo</p>
-                <p style={{ margin: 0, fontSize: 12, color: C.textMuted }}>Quadriciclo nº 12 · ★ 4.9</p>
+                <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
+                  {t("passengerCount", { defaultValue: "Passageiros" })}
+                </p>
+                <select
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                  value={count}
+                  onChange={(e) => setCount(Number(e.target.value))}
+                  disabled={submitting}
+                >
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <option key={num} value={num} style={{ background: C.surface, color: "#fff" }}>
+                      {num} {num === 1 ? "pessoa" : "pessoas"}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 999, background: stage === "done" ? C.online : "#fff", color: "#000" }}>
-                {stage === "matched" && "A caminho"}
-                {stage === "onboard" && "Em corrida"}
-                {stage === "done" && "Chegou"}
-              </span>
+
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                <label style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  height: 46,
+                  padding: "0 14px",
+                  borderRadius: 12,
+                  background: C.surface,
+                  border: `1px solid ${C.border}`,
+                  color: "#fff",
+                  fontSize: 13.5,
+                  cursor: "pointer"
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={hasLuggage}
+                    onChange={(e) => setHasLuggage(e.target.checked)}
+                    disabled={submitting}
+                    style={{ width: 16, height: 16, accentColor: "#F2C94C" }}
+                  />
+                  <span>{t("hasLuggage", { defaultValue: "Bagagem?" })}</span>
+                </label>
+              </div>
             </div>
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14 }}>
-              <RouteLine progress={stage === "matched" ? 0.05 : progress} />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.textMuted, fontFamily: "monospace" }}>
-                <span>{pickup}</span>
-                <span>{dest}</span>
-              </div>
+
+            <div>
+              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
+                {t("notesOptional", { defaultValue: "Observações (opcional)" })}
+              </p>
+              <input
+                style={inputStyle}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: Mala grande / próximo à ponte"
+                disabled={submitting}
+              />
             </div>
-            {stage === "matched" && <Button onClick={() => setStage("onboard")}>Simular embarque</Button>}
-            {stage === "done" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <p style={{ textAlign: "center", fontSize: 12.5, color: C.textMuted, margin: 0 }}>Corrida concluída · R$ 4,00</p>
-                <Button variant="secondary" onClick={reset}>Pedir outra corrida</Button>
-              </div>
+
+            {errorMsg && (
+              <p style={{ color: "#ff6b6b", fontSize: 13, margin: "2px 0 0", fontWeight: 500 }}>
+                {errorMsg}
+              </p>
             )}
+
+            <div style={{ marginTop: 8 }}>
+              <Button onClick={handleFormSubmit} disabled={submitting}>
+                {submitting
+                  ? t("sendingRequest", { defaultValue: "Enviando solicitação..." })
+                  : t("callRide", { defaultValue: "Chamar um bicitáxi" })}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {stage === "requested" && activeRide && (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 16,
+              padding: "24px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+              gap: 14
+            }}>
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                border: `3px solid ${C.border}`,
+                borderTopColor: C.online,
+                animation: "spin 0.8s linear infinite"
+              }} />
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
+                  {t("lookingForBicitaxi", { defaultValue: "Procurando um bicitáxi..." })}
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: C.textMuted }}>
+                  {t("rideCode", { defaultValue: "Código da corrida" })}: <strong style={{ color: "#fff", fontFamily: "monospace" }}>#{activeRide.id ? activeRide.id.slice(0, 6).toUpperCase() : ""}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {t("pickupLocation", { defaultValue: "Ponto de partida" })}
+                </p>
+                <p style={{ margin: "3px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeRide.pickupDescription}</p>
+              </div>
+
+              <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
+                <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {t("destinationLocation", { defaultValue: "Destino" })}
+                </p>
+                <p style={{ margin: "3px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeRide.destinationDescription}</p>
+              </div>
+
+              <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span>
+                  <span style={{ color: C.textMuted }}>{t("passengerCount", { defaultValue: "Passageiros" })}:</span> <strong>{activeRide.passengerCount}</strong>
+                </span>
+                <span>
+                  <span style={{ color: C.textMuted }}>{t("hasLuggage", { defaultValue: "Bagagem" })}:</span> <strong>{activeRide.hasLuggage ? t("yes", { defaultValue: "Sim" }) : t("no", { defaultValue: "Não" })}</strong>
+                </span>
+              </div>
+
+              {activeRide.expiresAt && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, textAlign: "center", fontSize: 12, color: C.textMuted }}>
+                  {t("expiresAt", { defaultValue: "Expira às" })} {new Date(activeRide.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
+            </div>
+
+            <button
+              className="btn"
+              disabled
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: 12,
+                background: C.surfaceAlt,
+                color: C.textMuted,
+                border: `1px solid ${C.border}`,
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: "not-allowed",
+                opacity: 0.7
+              }}
+            >
+              {t("cancelRideDisabledNotice", { defaultValue: "Cancelar solicitação (em breve)" })}
+            </button>
           </div>
         )}
       </div>
@@ -243,26 +473,114 @@ function DriverLogin({ onLogin }) {
 }
 
 // ---------------- DRIVER APP ----------------
-const MOCK_REQUESTS = [
-  { id: 1, from: "Rua da Praça, casa do seu Antônio", to: "Beira, próximo ao porto", eta: "3 min" },
-  { id: 2, from: "Escola Municipal", to: "Feira do peixe", eta: "5 min" },
-];
-
 function DriverApp({ driver, onLogout }) {
+  const { t } = useTranslation();
   const [available, setAvailable] = useState(true);
-  const [requests, setRequests] = useState(MOCK_REQUESTS);
-  const [active, setActive] = useState(null);
+  const [status, setStatus] = useState("loading"); // "loading" | "success" | "empty" | "error"
+  const [rides, setRides] = useState([]);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [acceptingRideId, setAcceptingRideId] = useState(null);
+  const [activeDriverRide, setActiveDriverRide] = useState(null);
 
-  const accept = (r) => { setActive(r); setRequests((rs) => rs.filter((x) => x.id !== r.id)); };
-  const decline = (id) => setRequests((rs) => rs.filter((x) => x.id !== id));
+  // Restauração de Sessão do Motorista (biciuber-driver-active-ride)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("biciuber-driver-active-ride");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.id && parsed.status === "ACCEPTED") {
+          setActiveDriverRide(parsed);
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao ler localStorage biciuber-driver-active-ride:", e);
+      localStorage.removeItem("biciuber-driver-active-ride");
+    }
+  }, []);
+
+  const loadPendingRides = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setRefreshing(true);
+    } else {
+      setStatus("loading");
+    }
+    setErrorMsg("");
+
+    try {
+      const data = await getPendingRides();
+      setRides(data);
+      if (data.length === 0) {
+        setStatus("empty");
+      } else {
+        setStatus("success");
+      }
+    } catch (err) {
+      console.error("Erro técnico ao carregar corridas pendentes para o motorista:", err);
+      setErrorMsg(t("errorLoadRequestsFailed", { defaultValue: "Não foi possível carregar as solicitações." }));
+      setStatus("error");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!activeDriverRide) {
+      loadPendingRides();
+    }
+  }, [activeDriverRide]);
+
+  const handleAcceptRide = async (rideToAccept) => {
+    if (!driver || !driver.id) {
+      setErrorMsg(t("errorAcceptRideFailed", { defaultValue: "Não foi possível aceitar a corrida. Tente novamente." }));
+      return;
+    }
+
+    setAcceptingRideId(rideToAccept.id);
+    setErrorMsg("");
+
+    try {
+      const acceptedRide = await acceptRide(rideToAccept.id, driver.id);
+
+      const activeData = {
+        id: acceptedRide.id,
+        status: acceptedRide.status,
+        passenger_name: acceptedRide.passenger_name,
+        passenger_phone: acceptedRide.passenger_phone,
+        pickup_description: acceptedRide.pickup_description,
+        destination_description: acceptedRide.destination_description,
+        passenger_count: acceptedRide.passenger_count,
+        has_luggage: acceptedRide.has_luggage,
+        notes: acceptedRide.notes,
+        accepted_at: acceptedRide.accepted_at,
+        expires_at: acceptedRide.expires_at,
+      };
+
+      localStorage.setItem("biciuber-driver-active-ride", JSON.stringify(activeData));
+      setActiveDriverRide(activeData);
+      setRides((rs) => rs.filter((r) => r.id !== rideToAccept.id));
+    } catch (err) {
+      console.error("Erro ao aceitar corrida:", err);
+      if (err.code === "RIDE_NOT_AVAILABLE" || err.message?.includes("RIDE_NOT_AVAILABLE")) {
+        setErrorMsg(t("errorRideNotAvailable", { defaultValue: "Esta corrida já foi aceita por outro bicitaxista ou expirou." }));
+        setRides((rs) => rs.filter((r) => r.id !== rideToAccept.id));
+        loadPendingRides(true);
+      } else {
+        setErrorMsg(t("errorAcceptRideFailed", { defaultValue: "Não foi possível aceitar a corrida. Tente novamente." }));
+      }
+    } finally {
+      setAcceptingRideId(null);
+    }
+  };
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
       <TopBar subtitle="Bicitaxista" />
+      
       <div style={{ padding: "16px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{driver.name}</p>
-          <p style={{ margin: 0, fontSize: 12, color: C.textMuted }}>{driver.plate}</p>
+          <p style={{ margin: 0, fontSize: 12, color: C.textMuted }}>{driver.plate || "Quadriciclo"}</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button className="btn" onClick={() => setAvailable((a) => !a)} style={{ padding: "8px 16px", borderRadius: 999, background: available ? C.online : C.surfaceAlt, color: available ? "#000" : C.textMuted, fontWeight: 700, fontSize: 12.5 }}>
@@ -270,37 +588,237 @@ function DriverApp({ driver, onLogout }) {
           </button>
         </div>
       </div>
-      <div style={{ padding: "10px 20px 0" }}>
+
+      <div style={{ padding: "10px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <button className="btn" onClick={onLogout} style={{ background: "transparent", color: C.textMuted, fontSize: 12, textDecoration: "underline", padding: 0 }}>
           sair
         </button>
+
+        {!activeDriverRide && (
+          <button
+            className="btn"
+            onClick={() => loadPendingRides(true)}
+            disabled={refreshing || !!acceptingRideId}
+            style={{
+              background: C.surfaceAlt,
+              color: "#FFFFFF",
+              fontSize: 12,
+              padding: "5px 12px",
+              borderRadius: 8,
+              border: `1px solid ${C.border}`,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              cursor: refreshing ? "wait" : "pointer"
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none" }}>
+              <path d="M23 4v6h-6" />
+              <path d="M1 20v-6h6" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            {refreshing ? t("refresh", { defaultValue: "Atualizando..." }) : t("refresh", { defaultValue: "Atualizar" })}
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-        {active ? (
-          <div className="fade-in" style={{ background: C.surface, border: "1px solid #fff", borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ margin: 0, fontSize: 11, textTransform: "uppercase", color: C.textMuted }}>Corrida em andamento</p>
-            <RouteLine progress={0.5} />
-            <p style={{ margin: 0, fontSize: 13.5 }}><b>De:</b> {active.from}</p>
-            <p style={{ margin: 0, fontSize: 13.5 }}><b>Para:</b> {active.to}</p>
-            <Button onClick={() => setActive(null)}>Concluir corrida</Button>
-          </div>
-        ) : available ? (
-          requests.length ? requests.map((r) => (
-            <div key={r.id} className="fade-in" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={{ fontSize: 11, color: C.textMuted, background: C.surfaceAlt, padding: "3px 8px", borderRadius: 999, alignSelf: "flex-start" }}>chegada em {r.eta}</span>
-              <p style={{ margin: 0, fontSize: 13.5 }}><b>De:</b> {r.from}</p>
-              <p style={{ margin: 0, fontSize: 13.5 }}><b>Para:</b> {r.to}</p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <div style={{ flex: 1 }}><Button variant="decline" onClick={() => decline(r.id)}>Recusar</Button></div>
-                <div style={{ flex: 1 }}><Button onClick={() => accept(r)}>Aceitar</Button></div>
+        {activeDriverRide ? (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.online}`, borderRadius: 16, padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "#000", background: C.online, padding: "4px 10px", borderRadius: 999, fontWeight: 800 }}>
+                  {t("statusAccepted", { defaultValue: "Aceita / A caminho" })}
+                </span>
+                <span style={{ fontSize: 11.5, color: C.textMuted, fontFamily: "monospace" }}>
+                  #{activeDriverRide.id ? activeDriverRide.id.slice(0, 6).toUpperCase() : ""}
+                </span>
+              </div>
+
+              <div>
+                <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {t("passengerName", { defaultValue: "Passageiro" })}
+                </p>
+                <h3 style={{ margin: "2px 0 0", fontSize: 18, fontWeight: 700, color: "#fff" }}>{activeDriverRide.passenger_name}</h3>
+                <p style={{ margin: "2px 0 0", fontSize: 13, color: C.textMuted }}>{activeDriverRide.passenger_phone}</p>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <a
+                  href={`tel:${onlyDigits(activeDriverRide.passenger_phone)}`}
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    padding: "12px 10px",
+                    borderRadius: 12,
+                    background: "#fff",
+                    color: "#000",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  {t("callPassenger", { defaultValue: "Ligar" })}
+                </a>
+
+                <a
+                  href={formatWhatsappUrl(
+                    activeDriverRide.passenger_phone,
+                    t("whatsappDefaultMessage", { defaultValue: "Olá, sou o bicitaxista que aceitou sua solicitação no BiciUber." })
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    padding: "12px 10px",
+                    borderRadius: 12,
+                    background: "#25D366",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 4.992l-1.417 5.176 5.297-1.389c1.458.796 3.099 1.215 4.774 1.216h.004c5.505 0 9.988-4.478 9.989-9.985 0-2.668-1.038-5.176-2.925-7.062a9.923 9.923 0 0 0-7.064-2.932z" />
+                  </svg>
+                  {t("whatsappPassenger", { defaultValue: "WhatsApp" })}
+                </a>
+              </div>
+
+              <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("pickupLocation", { defaultValue: "Partida" })}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeDriverRide.pickup_description}</p>
+                </div>
+
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("destinationLocation", { defaultValue: "Destino" })}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeDriverRide.destination_description}</p>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.textMuted, borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
+                  <span>{t("passengerCount", { defaultValue: "Passageiros" })}: <strong style={{ color: "#fff" }}>{activeDriverRide.passenger_count}</strong></span>
+                  <span>{t("hasLuggage", { defaultValue: "Bagagem" })}: <strong style={{ color: "#fff" }}>{activeDriverRide.has_luggage ? t("yes", { defaultValue: "Sim" }) : t("no", { defaultValue: "Não" })}</strong></span>
+                </div>
+
+                {activeDriverRide.notes && (
+                  <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", padding: "8px 10px", borderRadius: 8 }}>
+                    <strong>Obs:</strong> {activeDriverRide.notes}
+                  </div>
+                )}
               </div>
             </div>
-          )) : (
-            <p style={{ textAlign: "center", color: C.textMuted, fontSize: 13.5, marginTop: 60 }}>Nenhum chamado agora.<br />Assim que alguém pedir, aparece aqui.</p>
-          )
+          </div>
+        ) : !available ? (
+          <p style={{ textAlign: "center", color: C.textMuted, fontSize: 13.5, marginTop: 60 }}>
+            Você está indisponível.<br />Toque em "Disponível" pra receber chamados.
+          </p>
+        ) : status === "loading" ? (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "60px 0" }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${C.border}`, borderTopColor: C.online, animation: "spin 0.8s linear infinite" }} />
+            <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
+              {t("loadingRequests", { defaultValue: "Buscando solicitações..." })}
+            </p>
+          </div>
+        ) : status === "error" ? (
+          <div className="fade-in" style={{ textAlign: "center", padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <p style={{ color: "#ff6b6b", fontSize: 13.5, margin: 0 }}>
+              {errorMsg || t("errorLoadRequestsFailed", { defaultValue: "Não foi possível carregar as solicitações." })}
+            </p>
+            <button
+              className="btn"
+              onClick={() => loadPendingRides(true)}
+              style={{ padding: "8px 16px", borderRadius: 10, background: C.surfaceAlt, color: "#fff", fontSize: 13, border: `1px solid ${C.border}` }}
+            >
+              {t("refresh", { defaultValue: "Tentar novamente" })}
+            </button>
+          </div>
+        ) : status === "empty" || rides.length === 0 ? (
+          <div className="fade-in" style={{ textAlign: "center", padding: "60px 0" }}>
+            {errorMsg && <p style={{ color: "#ff6b6b", fontSize: 13, marginBottom: 12 }}>{errorMsg}</p>}
+            <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
+              {t("noRequestsAvailable", { defaultValue: "Nenhuma solicitação disponível no momento." })}
+            </p>
+          </div>
         ) : (
-          <p style={{ textAlign: "center", color: C.textMuted, fontSize: 13.5, marginTop: 60 }}>Você está indisponível.<br />Toque em "Disponível" pra receber chamados.</p>
+          <>
+            {errorMsg && (
+              <p style={{ color: "#ff6b6b", fontSize: 13, margin: "0 0 6px", fontWeight: 500, textAlign: "center" }}>
+                {errorMsg}
+              </p>
+            )}
+
+            {rides.map((r) => {
+              const isAcceptingThis = acceptingRideId === r.id;
+              const isAnyAccepting = !!acceptingRideId;
+
+              return (
+                <div key={r.id} className="fade-in" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11.5, color: "#fff", background: C.surfaceAlt, padding: "3px 8px", borderRadius: 8, fontFamily: "monospace", fontWeight: 700 }}>
+                      #{r.id ? r.id.slice(0, 6).toUpperCase() : ""}
+                    </span>
+                    <span style={{ fontSize: 11.5, color: C.textMuted }}>
+                      {calcTimeAgo(r.created_at, t)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {t("pickupLocation", { defaultValue: "Ponto de partida" })}
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{r.pickup_description}</p>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {t("destinationLocation", { defaultValue: "Destino" })}
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{r.destination_description}</p>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.textMuted, borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
+                    <span>{t("passengerCount", { defaultValue: "Passageiros" })}: <strong style={{ color: "#fff" }}>{r.passenger_count}</strong></span>
+                    <span>{t("hasLuggage", { defaultValue: "Bagagem" })}: <strong style={{ color: "#fff" }}>{r.has_luggage ? t("yes", { defaultValue: "Sim" }) : t("no", { defaultValue: "Não" })}</strong></span>
+                  </div>
+
+                  {r.notes && (
+                    <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", border: "1px solid rgba(242, 201, 76, 0.2)", padding: "8px 10px", borderRadius: 8 }}>
+                      <strong>Obs:</strong> {r.notes}
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: 11.5, color: C.textMuted, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                    {t("expiresAt", { defaultValue: "Expira às" })} {new Date(r.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+
+                  <div style={{ marginTop: 4 }}>
+                    <Button
+                      onClick={() => handleAcceptRide(r)}
+                      disabled={isAnyAccepting}
+                    >
+                      {isAcceptingThis
+                        ? t("accepting", { defaultValue: "Aceitando..." })
+                        : t("acceptRide", { defaultValue: "Aceitar corrida" })}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </>
         )}
       </div>
     </div>
@@ -447,8 +965,7 @@ function AdminApp() {
 
 // ---------------- ROOT ----------------
 export default function App() {
-  const [view, setView] = useState("passenger"); // passenger | driverLogin | driverApp | admin
-  const [showSplash, setShowSplash] = useState(true);
+  const [view, setView] = useState("welcome"); // welcome | passenger | driverLogin | driverApp | admin
   const [loggedDriver, setLoggedDriver] = useState(null);
 
   const tabs = [
@@ -468,11 +985,36 @@ export default function App() {
   return (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      {showSplash ? (
-        <SplashScreen onDone={() => setShowSplash(false)} />
+      {view === "welcome" ? (
+        <WelcomeScreen
+          onSelectPassenger={() => setView("passenger")}
+          onSelectDriver={() => setView("driverLogin")}
+        />
       ) : (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 6, padding: 10, background: "#000", borderBottom: `1px solid ${C.border}` }}>
+            <button
+              className="btn"
+              onClick={() => setView("welcome")}
+              title="Início"
+              aria-label="Voltar para a tela inicial"
+              style={{
+                padding: "8px 12px",
+                borderRadius: 10,
+                background: "rgba(255, 255, 255, 0.08)",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: 12.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </button>
             {tabs.map((t) => (
               <button
                 key={t.k}

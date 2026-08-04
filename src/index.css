@@ -21,25 +21,75 @@ input {
   font-family: inherit;
 }
 
+/* Animations */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
 @keyframes splashIn {
   0% { opacity: 0; transform: scale(0.85); }
   100% { opacity: 1; transform: scale(1); }
 }
-@keyframes pulseDot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(242, 201, 76, 0.25);
+    border-color: rgba(242, 201, 76, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(242, 201, 76, 0.5);
+    border-color: rgba(242, 201, 76, 1);
+  }
+}
+
+.bicitaxi-icon-badge {
+  animation: pulseGlow 3s ease-in-out infinite;
 }
 
 .fade-in { animation: fadeInUp 0.3s ease both; }
 
+/* Buttons & Accessibility */
 .btn {
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  transition: transform 0.12s ease, opacity 0.12s ease, background-color 0.15s ease;
 }
+
 .btn:active {
-  transform: scale(0.96);
-  opacity: 0.85;
+  transform: scale(0.97);
+  opacity: 0.88;
+}
+
+.btn-primary-gold:hover {
+  background-color: #f5d46e !important;
+}
+
+.btn-driver-link:hover {
+  color: #ffffff !important;
+  text-decoration: underline !important;
+}
+
+.lang-selector-btn:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #F2C94C !important;
+  outline-offset: 2px !important;
+}
+
+/* Prefers Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .bicitaxi-icon-badge {
+    animation: none !important;
+  }
 }

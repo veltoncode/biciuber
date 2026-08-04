@@ -8,8 +8,7 @@ App para chamar bicitáxi em Afuá, feito com React + Vite + Supabase. PWA insta
 2. Escolha um nome (ex: biciuber) e uma senha de banco (guarde ela)
 3. Espere uns 2 minutos até o projeto ficar pronto
 
-## 2. Rode o schema do banco
-
+##
 1. No painel do Supabase, vá em **SQL Editor** (menu lateral) > **New query**
 2. Abra o arquivo `supabase-schema.sql` deste projeto, copie todo o conteúdo, cole no editor e clique em **Run**
 3. Isso cria a tabela `drivers` (bicitaxistas) já com realtime habilitado
@@ -65,3 +64,15 @@ Suba pro [Vercel](https://vercel.com), conecte o repositório do GitHub, e nas c
 ## Sobre segurança
 
 Agora só quem estiver logado como admin (o usuário que você criou no passo 3) consegue cadastrar, editar ou remover bicitaxistas. A leitura da lista continua aberta, porque o bicitaxista precisa consultar pelo telefone pra entrar sem precisar de senha.
+
+## Corridas reais — configuração do banco
+
+Para habilitar a estrutura de corridas reais no Supabase:
+
+1. Abra o painel do seu projeto no **Supabase** (https://supabase.com).
+2. Acesse o **SQL Editor** no menu lateral.
+3. Abra e execute o script `supabase-rides-schema.sql`.
+4. Verifique na aba **Table Editor** se a tabela `rides` foi criada corretamente com seus campos e restrições.
+5. Verifique em **Database > Publications** se a tabela `rides` está incluída na publicação `supabase_realtime`.
+6. **Atenção:** As políticas RLS atuais são provisórias para o MVP estudantil. Não execute em ambiente de produção sem revisar as políticas RLS e a estratégia de autenticação dos motoristas.
+
