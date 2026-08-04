@@ -1,18 +1,82 @@
-const CACHE_NAME = "biciuber-v1";
-const CORE_ASSETS = ["/", "/manifest.json"];
+const CACHE_NAME = "biciuber-v2";
+
+const CORE_ASSETS = [
+  "/",
+  "/manifest.json",
+  "/icons/bicitaxi-afua.png",
+];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(CORE_ASSETS)));
   self.skipWaiting();
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(CORE_ASSETS);
+    })
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+    Promise.all([
+      caches.keys().then((cacheNames) =>
+        Promise.all(
+          cacheNames
+            .filter((cacheName) => cacheName !== CACHE_NAME)
+            .map((cacheName) => caches.delete(cacheName))
+        )
+      ),
+      self.clients.claim(),
+    ])
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(caches.match(event.request).then((c) => c || fetch(event.request)));
+  if (event.request.method !== "GET") {
+    return;
+  }
+
+  const requestUrl = new URL(event.request.url);
+
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseCopy = response.clone();
+
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put("/", responseCopy);
+          });
+
+          return response;
+        })
+        .catch(() => caches.match("/"))
+    );
+
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const networkResponse = fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const responseCopy = response.clone();
+
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseCopy);
+            });
+          }
+
+          return response;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || networkResponse;
+    })
+  );
 });
