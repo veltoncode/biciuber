@@ -64,9 +64,21 @@
   "liveConnectionFailed": "Live connection failed",
   "statusDriverFound": "Bicitaxi found",
   "statusDriverArriving": "Bicitaxi arriving",
-  "statusDriverArrived": "Bicitaxi arrived",
+  "statusDriverArrived": "The bicitaxi arrived",
   "statusInProgress": "Ride in progress",
   "statusCompleted": "Ride completed",
   "driverCancelled": "The passenger cancelled the ride.",
-  "rideExpired": "No bicitaxi driver accepted the request in time."
+  "rideExpired": "No bicitaxi driver accepted the request in time.",
+  "actionOnMyWay": "I'm on my way",
+  "updating": "Updating...",
+  "actionArrived": "I've arrived",
+  "actionStartRide": "Start ride",
+  "actionCompleteRide": "Complete ride",
+  "rideCompletedSuccess": "Ride completed successfully.",
+  "errorUpdateRideFailed": "We couldn't update the ride.",
+  "errorStatusChangeNotAllowed": "This status change is not allowed.",
+  "confirmStartRide": "Confirm starting the ride?",
+  "confirmCompleteRide": "Confirm completing the ride?",
+  "errorAlreadyHasActiveRide": "You already have an active ride.",
+  "newRequest": "New request"
 }

@@ -64,9 +64,21 @@
   "liveConnectionFailed": "Falha na conexão em tempo real",
   "statusDriverFound": "Bicitáxi encontrado",
   "statusDriverArriving": "Bicitaxista a caminho",
-  "statusDriverArrived": "Bicitaxista chegou",
+  "statusDriverArrived": "O bicitaxista chegou",
   "statusInProgress": "Corrida em andamento",
   "statusCompleted": "Corrida concluída",
   "driverCancelled": "O passageiro cancelou a corrida.",
-  "rideExpired": "Nenhum bicitaxista aceitou a solicitação a tempo."
+  "rideExpired": "Nenhum bicitaxista aceitou a solicitação a tempo.",
+  "actionOnMyWay": "Estou a caminho",
+  "updating": "Atualizando...",
+  "actionArrived": "Cheguei ao local",
+  "actionStartRide": "Iniciar corrida",
+  "actionCompleteRide": "Concluir corrida",
+  "rideCompletedSuccess": "Corrida concluída com sucesso.",
+  "errorUpdateRideFailed": "Não foi possível atualizar a corrida.",
+  "errorStatusChangeNotAllowed": "Esta alteração de status não é permitida.",
+  "confirmStartRide": "Confirmar início da corrida?",
+  "confirmCompleteRide": "Confirmar conclusão da corrida?",
+  "errorAlreadyHasActiveRide": "Você já possui uma corrida ativa.",
+  "newRequest": "Nova solicitação"
 }

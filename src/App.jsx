@@ -208,8 +208,7 @@ function PassengerApp() {
           localStorage.removeItem("biciuber-active-ride");
           setActiveRide(null);
           setDriverInfo(null);
-          setStage("form");
-          setCancelSuccessMsg(t("statusCompleted", { defaultValue: "Corrida concluída" }));
+          setStage("completed");
         }
         else if (newRide.status === "EXPIRED") {
           localStorage.removeItem("biciuber-active-ride");
@@ -613,6 +612,26 @@ function PassengerApp() {
             </div>
           </div>
         )}
+
+        {stage === "completed" && (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", justifyContent: "center", minHeight: "60vh", padding: "20px 0" }}>
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: C.online, display: "flex", alignItems: "center", justifyContent: "center", color: "#000", marginBottom: 10 }}>
+              <svg width="40" height="40" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 style={{ color: "#fff", fontSize: 24, margin: "0", textAlign: "center" }}>
+              {t("statusCompleted", { defaultValue: "Corrida concluída" })}
+            </h2>
+            <div style={{ marginTop: 30, width: "100%" }}>
+              <Button onClick={() => {
+                setStage("form");
+                setCancelSuccessMsg("");
+                setCancelErrorMsg("");
+              }} style={{ width: "100%", height: 54, fontSize: 16, borderRadius: 12 }}>
+                {t("newRequest", { defaultValue: "Nova solicitação" })}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -678,7 +697,7 @@ function DriverApp({ driver, onLogout }) {
   const [activeDriverRide, setActiveDriverRide] = useState(null);
   const [checkingActiveRide, setCheckingActiveRide] = useState(true);
   const [liveStatus, setLiveStatus] = useState("");
-
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const loadPendingRides = async (isManualRefresh = false) => {
     if (isManualRefresh) {
@@ -828,6 +847,36 @@ function DriverApp({ driver, onLogout }) {
     return () => clearInterval(interval);
   }, [activeDriverRide, checkingActiveRide]);
 
+  const handleUpdateRideStatus = async (newStatus, confirmMessage) => {
+    if (!activeDriverRide || !driver) return;
+    
+    if (confirmMessage) {
+      const confirmed = window.confirm(confirmMessage);
+      if (!confirmed) return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      const updatedRide = await updateRideStatus(activeDriverRide.id, driver.id, newStatus);
+      if (updatedRide.status === "COMPLETED") {
+        setActiveDriverRide(null);
+        alert(t("rideCompletedSuccess", { defaultValue: "Corrida concluída com sucesso." }));
+        loadPendingRides(true);
+      } else {
+        setActiveDriverRide(updatedRide);
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar status:", err);
+      if (err.code === "INVALID_RIDE_STATUS_TRANSITION" || err.message?.includes("INVALID_RIDE_STATUS_TRANSITION")) {
+        alert(t("errorStatusChangeNotAllowed", { defaultValue: "Esta alteração de status não é permitida." }));
+      } else {
+        alert(t("errorUpdateRideFailed", { defaultValue: "Não foi possível atualizar a corrida." }));
+      }
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
 
   const handleLogout = () => {
     localStorage.removeItem("biciuber-driver-active-ride");
@@ -931,7 +980,10 @@ function DriverApp({ driver, onLogout }) {
             <div style={{ background: C.surface, border: `1px solid ${C.online}`, borderRadius: 16, padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "#000", background: C.online, padding: "4px 10px", borderRadius: 999, fontWeight: 800 }}>
-                  {t("statusAccepted", { defaultValue: "Aceita / A caminho" })}
+                  {activeDriverRide.status === "ACCEPTED" && t("statusDriverFound", { defaultValue: "Bicitáxi encontrado" })}
+                  {activeDriverRide.status === "DRIVER_ARRIVING" && t("statusDriverArriving", { defaultValue: "A caminho" })}
+                  {activeDriverRide.status === "DRIVER_ARRIVED" && t("statusDriverArrived", { defaultValue: "Chegou" })}
+                  {activeDriverRide.status === "IN_PROGRESS" && t("statusInProgress", { defaultValue: "Em andamento" })}
                 </span>
                 <span style={{ fontSize: 11.5, color: C.textMuted, fontFamily: "monospace" }}>
                   #{activeDriverRide.id ? activeDriverRide.id.slice(0, 6).toUpperCase() : ""}
@@ -1022,6 +1074,52 @@ function DriverApp({ driver, onLogout }) {
                     <strong>Obs:</strong> {activeDriverRide.notes}
                   </div>
                 )}
+
+                <div style={{ marginTop: 10 }}>
+                  {activeDriverRide.status === "ACCEPTED" && (
+                    <button
+                      className="btn"
+                      disabled={updatingStatus}
+                      onClick={() => handleUpdateRideStatus("DRIVER_ARRIVING")}
+                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: C.online, color: "#000", fontWeight: 800, fontSize: 14 }}
+                    >
+                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionOnMyWay", { defaultValue: "Estou a caminho" })}
+                    </button>
+                  )}
+
+                  {activeDriverRide.status === "DRIVER_ARRIVING" && (
+                    <button
+                      className="btn"
+                      disabled={updatingStatus}
+                      onClick={() => handleUpdateRideStatus("DRIVER_ARRIVED")}
+                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: C.online, color: "#000", fontWeight: 800, fontSize: 14 }}
+                    >
+                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionArrived", { defaultValue: "Cheguei ao local" })}
+                    </button>
+                  )}
+
+                  {activeDriverRide.status === "DRIVER_ARRIVED" && (
+                    <button
+                      className="btn"
+                      disabled={updatingStatus}
+                      onClick={() => handleUpdateRideStatus("IN_PROGRESS", t("confirmStartRide", { defaultValue: "Confirmar início da corrida?" }))}
+                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: "#3b82f6", color: "#fff", fontWeight: 800, fontSize: 14 }}
+                    >
+                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionStartRide", { defaultValue: "Iniciar corrida" })}
+                    </button>
+                  )}
+
+                  {activeDriverRide.status === "IN_PROGRESS" && (
+                    <button
+                      className="btn"
+                      disabled={updatingStatus}
+                      onClick={() => handleUpdateRideStatus("COMPLETED", t("confirmCompleteRide", { defaultValue: "Confirmar conclusão da corrida?" }))}
+                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: 14 }}
+                    >
+                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionCompleteRide", { defaultValue: "Concluir corrida" })}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

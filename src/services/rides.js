@@ -80,6 +80,11 @@ export async function acceptRide(rideId, driverId) {
 
   if (error) {
     console.error("Erro técnico ao executar RPC accept_ride no Supabase:", error);
+    if (error.message && error.message.includes("DRIVER_ALREADY_HAS_ACTIVE_RIDE")) {
+      const customErr = new Error("DRIVER_ALREADY_HAS_ACTIVE_RIDE");
+      customErr.code = "DRIVER_ALREADY_HAS_ACTIVE_RIDE";
+      throw customErr;
+    }
     if (error.message && error.message.includes("RIDE_NOT_AVAILABLE")) {
       const customErr = new Error("RIDE_NOT_AVAILABLE");
       customErr.code = "RIDE_NOT_AVAILABLE";
@@ -183,5 +188,42 @@ export async function getDriverById(driverId) {
   return data || null;
 }
 
+/**
+ * Atualiza o status da corrida (Passos do motorista).
+ *
+ * @param {string} rideId UUID da corrida
+ * @param {string} driverId UUID do motorista
+ * @param {string} newStatus Novo status (DRIVER_ARRIVING, DRIVER_ARRIVED, IN_PROGRESS, COMPLETED)
+ * @returns {Promise<Object>} Dados atualizados da corrida
+ */
+export async function updateRideStatus(rideId, driverId, newStatus) {
+  const { data, error } = await supabase.rpc("update_driver_ride_status", {
+    p_ride_id: rideId,
+    p_driver_id: driverId,
+    p_new_status: newStatus,
+  });
 
+  if (error) {
+    console.error("Erro técnico ao executar RPC update_driver_ride_status no Supabase:", error);
+    if (error.message && error.message.includes("INVALID_RIDE_STATUS_TRANSITION")) {
+      const customErr = new Error("INVALID_RIDE_STATUS_TRANSITION");
+      customErr.code = "INVALID_RIDE_STATUS_TRANSITION";
+      throw customErr;
+    }
+    if (error.message && error.message.includes("RIDE_NOT_FOUND_OR_FORBIDDEN")) {
+      const customErr = new Error("RIDE_NOT_FOUND_OR_FORBIDDEN");
+      customErr.code = "RIDE_NOT_FOUND_OR_FORBIDDEN";
+      throw customErr;
+    }
+    throw error;
+  }
 
+  const updated = Array.isArray(data) ? data[0] : data;
+  if (!updated) {
+    const customErr = new Error("UPDATE_FAILED");
+    customErr.code = "UPDATE_FAILED";
+    throw customErr;
+  }
+
+  return updated;
+}
