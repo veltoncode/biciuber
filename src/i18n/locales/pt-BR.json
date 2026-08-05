@@ -80,5 +80,15 @@
   "confirmStartRide": "Confirmar início da corrida?",
   "confirmCompleteRide": "Confirmar conclusão da corrida?",
   "errorAlreadyHasActiveRide": "Você já possui uma corrida ativa.",
-  "newRequest": "Nova solicitação"
+  "newRequest": "Nova solicitação",
+  "soundEnabled": "Som ativado",
+  "soundDisabled": "Som desativado",
+  "enableSound": "Ativar som",
+  "disableSound": "Desativar som",
+  "alertNewRide": "Nova solicitação de bicitáxi.",
+  "alertRideAccepted": "Um bicitaxista aceitou sua solicitação.",
+  "alertDriverArriving": "O bicitaxista está a caminho.",
+  "alertDriverArrived": "O bicitaxista chegou.",
+  "alertRideStarted": "Corrida iniciada.",
+  "alertRideCompleted": "Corrida concluída."
 }

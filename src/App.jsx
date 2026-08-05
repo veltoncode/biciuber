@@ -13,6 +13,9 @@ import {
 import { subscribeToRide, subscribeToPendingRides, subscribeToDriverRide } from "./services/rideRealtime.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
+import AppAlertBanner from "./components/AppAlertBanner.jsx";
+import PushSubscribeCard from "./components/PushSubscribeCard.jsx";
+import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPref } from "./services/appAlerts.js";
 
 const C = {
   bg: "#000000",
@@ -141,6 +144,13 @@ function PassengerApp() {
   const [liveStatus, setLiveStatus] = useState("");
   const [driverInfo, setDriverInfo] = useState(null);
 
+  const prevStatus = useRef(null);
+  const [banner, setBanner] = useState({ visible: false, type: "info", message: "" });
+
+  const showBanner = (type, message) => {
+    setBanner({ visible: true, type, message });
+  };
+
   // Restauração de Sessão (biciuber-active-ride)
   useEffect(() => {
     try {
@@ -195,6 +205,29 @@ function PassengerApp() {
       },
       onUpdate: (newRide) => {
         // Atualiza a UI se o status for um dos ativos
+        // Comparar status antigo
+        if (prevStatus.current && prevStatus.current !== newRide.status) {
+          if (newRide.status === "ACCEPTED") {
+            playAlertSound("RIDE_ACCEPTED");
+            vibrateAlert("NEW_RIDE");
+            showBanner("success", t("alertRideAccepted", { defaultValue: "Um bicitaxista aceitou sua solicitação." }));
+          } else if (newRide.status === "DRIVER_ARRIVING") {
+            playAlertSound("DRIVER_ARRIVING");
+            vibrateAlert("NEW_RIDE");
+            showBanner("info", t("alertDriverArriving", { defaultValue: "O bicitaxista está a caminho." }));
+          } else if (newRide.status === "DRIVER_ARRIVED") {
+            playAlertSound("DRIVER_ARRIVED");
+            vibrateAlert("DRIVER_ARRIVED");
+            showBanner("success", t("alertDriverArrived", { defaultValue: "O bicitaxista chegou." }));
+          } else if (newRide.status === "IN_PROGRESS") {
+            playAlertSound("RIDE_STARTED");
+            vibrateAlert("NEW_RIDE");
+            showBanner("info", t("alertRideStarted", { defaultValue: "Corrida iniciada." }));
+          }
+        }
+        
+        prevStatus.current = newRide.status; // atualizar ref
+
         if (["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"].includes(newRide.status)) {
           const updatedRide = { ...activeRide, ...newRide };
           setActiveRide(updatedRide);
@@ -206,6 +239,8 @@ function PassengerApp() {
         } 
         // Lida com cancelamentos ou conclusões
         else if (newRide.status === "CANCELLED") {
+          playAlertSound("RIDE_CANCELLED");
+          vibrateAlert("RIDE_CANCELLED");
           localStorage.removeItem("biciuber-active-ride");
           setActiveRide(null);
           setDriverInfo(null);
@@ -213,6 +248,8 @@ function PassengerApp() {
           setCancelErrorMsg(t("driverCancelled", { defaultValue: "O passageiro cancelou a corrida." })); // Will override text in UI
         }
         else if (newRide.status === "COMPLETED") {
+          playAlertSound("RIDE_COMPLETED");
+          vibrateAlert("NEW_RIDE");
           localStorage.removeItem("biciuber-active-ride");
           setActiveRide(null);
           setDriverInfo(null);
@@ -237,6 +274,7 @@ function PassengerApp() {
 
   const handleFormSubmit = async (e) => {
     if (e) e.preventDefault();
+    unlockAudio();
     setErrorMsg("");
     setCancelSuccessMsg("");
     setCancelErrorMsg("");
@@ -343,6 +381,12 @@ function PassengerApp() {
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
+      <AppAlertBanner 
+        type={banner.type} 
+        message={banner.message} 
+        visible={banner.visible} 
+        onClose={() => setBanner({ ...banner, visible: false })} 
+      />
       <TopBar subtitle="Passageiro" />
       {liveStatus && (
         <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
@@ -559,6 +603,12 @@ function PassengerApp() {
               )}
             </div>
 
+            <PushSubscribeCard 
+              userType="PASSENGER" 
+              rideId={activeRide.id} 
+              publicTrackingToken={activeRide.publicTrackingToken} 
+            />
+
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
                 <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -652,6 +702,7 @@ function DriverLogin({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   const tryLogin = async () => {
+    unlockAudio();
     setLoading(true);
     setError("");
     const digits = onlyDigits(phone);
@@ -707,6 +758,22 @@ function DriverApp({ driver, onLogout }) {
   const [liveStatus, setLiveStatus] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // Alertas
+  const [soundEnabled, setSoundEnabled] = useState(canPlaySound());
+  const [banner, setBanner] = useState({ visible: false, type: "info", message: "" });
+  const [newRideIds, setNewRideIds] = useState([]);
+  const pendingRideIds = useRef([]);
+  const activeRideStatus = useRef(null);
+
+  const showBanner = (type, message) => {
+    setBanner({ visible: true, type, message });
+  };
+
+  const handleToggleSound = () => {
+    const newVal = toggleSoundPref();
+    setSoundEnabled(newVal);
+  };
+
   const loadPendingRides = async (isManualRefresh = false) => {
     if (isManualRefresh) {
       setRefreshing(true);
@@ -718,6 +785,8 @@ function DriverApp({ driver, onLogout }) {
     try {
       const data = await getPendingRides();
       setRides(data);
+      pendingRideIds.current = data.map(r => r.id);
+      
       if (data.length === 0) {
         setStatus("empty");
       } else {
@@ -795,6 +864,21 @@ function DriverApp({ driver, onLogout }) {
       onPendingCreated: (ride) => {
         setRides(prev => {
           if (prev.find(r => r.id === ride.id)) return prev;
+
+          // Se for genuinamente nova
+          if (!pendingRideIds.current.includes(ride.id)) {
+            pendingRideIds.current.push(ride.id);
+            playAlertSound("NEW_RIDE");
+            vibrateAlert("NEW_RIDE");
+            showBanner("info", t("alertNewRide", { defaultValue: "Nova solicitação de bicitáxi." }));
+            
+            // Adicionar destaque
+            setNewRideIds(ids => [...ids, ride.id]);
+            setTimeout(() => {
+              setNewRideIds(ids => ids.filter(id => id !== ride.id));
+            }, 6000);
+          }
+
           const newList = [ride, ...prev].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
           setStatus(newList.length > 0 ? "success" : "empty");
           return newList;
@@ -923,6 +1007,12 @@ function DriverApp({ driver, onLogout }) {
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
+      <AppAlertBanner 
+        type={banner.type} 
+        message={banner.message} 
+        visible={banner.visible} 
+        onClose={() => setBanner({ ...banner, visible: false })} 
+      />
       <TopBar subtitle="Bicitaxista" />
       {liveStatus && (
         <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
@@ -936,10 +1026,29 @@ function DriverApp({ driver, onLogout }) {
           <p style={{ margin: 0, fontSize: 12, color: C.textMuted }}>{driver.plate || "Quadriciclo"}</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button 
+            className="btn" 
+            onClick={handleToggleSound} 
+            style={{ padding: "8px 12px", borderRadius: 999, background: C.surfaceAlt, color: soundEnabled ? C.online : C.textMuted, border: `1px solid ${C.border}`, fontSize: 12.5 }}
+            aria-label={soundEnabled ? t("disableSound", { defaultValue: "Desativar som" }) : t("enableSound", { defaultValue: "Ativar som" })}
+          >
+            {soundEnabled ? (
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M17.657 6.343a8 8 0 010 11.314M11 5L6 9H2v6h4l5 4V5z"></path></svg>
+            ) : (
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h2.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd"></path><path strokeLinecap="round" strokeLinejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+            )}
+          </button>
           <button className="btn" onClick={() => setAvailable((a) => !a)} style={{ padding: "8px 16px", borderRadius: 999, background: available ? C.online : C.surfaceAlt, color: available ? "#000" : C.textMuted, fontWeight: 700, fontSize: 12.5 }}>
             {available ? "Disponível" : "Indisponível"}
           </button>
         </div>
+      </div>
+
+      <div style={{ padding: "0 20px", marginTop: 14 }}>
+        <PushSubscribeCard 
+          userType="DRIVER" 
+          driverId={driver.id} 
+        />
       </div>
 
       <div style={{ padding: "10px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1173,14 +1282,15 @@ function DriverApp({ driver, onLogout }) {
             {rides.map((r) => {
               const isAcceptingThis = acceptingRideId === r.id;
               const isAnyAccepting = !!acceptingRideId;
+              const isNew = newRideIds.includes(r.id);
 
               return (
                 <div
                   key={r.id}
-                  className="fade-in driver-ride-card"
+                  className={`fade-in driver-ride-card ${isNew ? 'ride-highlight' : ''}`}
                   style={{
                     background: C.surface,
-                    border: `1px solid ${C.border}`,
+                    border: `1px solid ${isNew ? '#F2C94C' : C.border}`,
                     borderRadius: 14,
                     padding: 16,
                     display: "flex",
@@ -1188,7 +1298,9 @@ function DriverApp({ driver, onLogout }) {
                     gap: 12,
                     height: "auto",
                     overflow: "visible",
-                    minWidth: 0
+                    minWidth: 0,
+                    boxShadow: isNew ? '0 0 12px rgba(242, 201, 76, 0.4)' : 'none',
+                    transition: 'all 0.5s ease',
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1362,6 +1474,7 @@ function AdminApp() {
           sair
         </button>
       </div>
+
       <div style={{ flex: 1, padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>Cadastrar bicitaxista</p>

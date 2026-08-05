@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import BicitaxiIcon from "./BicitaxiIcon.jsx";
 import LanguageSelector from "./LanguageSelector.jsx";
 import InstallPwaButton from "./InstallPwaButton.jsx";
+import { unlockAudio } from "../services/appAlerts.js";
 import "./welcome.css";
 
 function DriverIcon() {
@@ -78,7 +79,10 @@ export default function WelcomeScreen({
           <button
             type="button"
             className="welcome__primary-button"
-            onClick={onSelectPassenger}
+            onClick={() => {
+              unlockAudio();
+              onSelectPassenger();
+            }}
           >
             <BicitaxiIcon
               size={42}
@@ -98,7 +102,10 @@ export default function WelcomeScreen({
           <button
             type="button"
             className="welcome__driver-link"
-            onClick={onSelectDriver}
+            onClick={() => {
+              unlockAudio();
+              onSelectDriver();
+            }}
           >
             <DriverIcon />
 

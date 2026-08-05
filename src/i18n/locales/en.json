@@ -80,5 +80,15 @@
   "confirmStartRide": "Confirm starting the ride?",
   "confirmCompleteRide": "Confirm completing the ride?",
   "errorAlreadyHasActiveRide": "You already have an active ride.",
-  "newRequest": "New request"
+  "newRequest": "New request",
+  "soundEnabled": "Sound on",
+  "soundDisabled": "Sound off",
+  "enableSound": "Enable sound",
+  "disableSound": "Disable sound",
+  "alertNewRide": "New bicitaxi request.",
+  "alertRideAccepted": "A bicitaxi driver accepted your request.",
+  "alertDriverArriving": "The bicitaxi driver is on the way.",
+  "alertDriverArrived": "The bicitaxi driver has arrived.",
+  "alertRideStarted": "Ride started.",
+  "alertRideCompleted": "Ride completed."
 }

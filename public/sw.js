@@ -1,4 +1,4 @@
-const CACHE_NAME = "bicitaxi-v3";
+const CACHE_NAME = "bicitaxi-v4";
 
 const CORE_ASSETS = [
   "/",
@@ -77,6 +77,64 @@ self.addEventListener("fetch", (event) => {
         .catch(() => cachedResponse);
 
       return cachedResponse || networkResponse;
+    })
+  );
+});
+
+// ==========================================
+// PUSH NOTIFICATIONS
+// ==========================================
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  try {
+    const data = event.data.json();
+    const title = data.title || "BiciTaxi";
+    
+    const options = {
+      body: data.body || "",
+      icon: data.icon || "/icons/bicitaxi-afua.png",
+      badge: data.badge || "/icons/bicitaxi-afua.png",
+      vibrate: [200, 100, 200],
+      tag: data.tag || "bicitaxi-notification",
+      renotify: true,
+      data: data.data || { url: "/" }
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (e) {
+    console.error("Error parsing push payload", e);
+  }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const urlToOpen = event.notification.data.url || "/";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      // Procura uma janela já aberta do BiciTaxi
+      let matchingClient = null;
+
+      for (let i = 0; i < windowClients.length; i++) {
+        const windowClient = windowClients[i];
+        if (windowClient.url.includes(self.location.origin)) {
+          matchingClient = windowClient;
+          break;
+        }
+      }
+
+      if (matchingClient) {
+        // Foca a janela existente e (se o navegador permitir) navega para a url especificada
+        matchingClient.focus();
+        // Opcional: matchingClient.navigate(urlToOpen) - mas pode causar recarregamento indesejado no react. 
+        // O foco geralmente basta pois o realtime cuida da atualização da tela.
+      } else {
+        // Se não houver janela aberta, abre uma nova
+        clients.openWindow(urlToOpen);
+      }
     })
   );
 });
