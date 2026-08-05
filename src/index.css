@@ -79,6 +79,31 @@ input:focus-visible {
   outline-offset: 2px !important;
 }
 
+/* Mobile explicit rules (<= 768px) */
+@media (max-width: 768px) {
+  .driver-ride-card {
+    height: auto !important;
+    overflow: visible !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+  }
+  .driver-ride-card * {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .accept-ride-btn {
+    width: 100% !important;
+    min-height: 52px !important;
+    margin-top: 16px !important;
+    position: static !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
 /* Prefers Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -1,6 +1,6 @@
 {
-  "name": "BiciUber",
-  "short_name": "BiciUber",
+  "name": "BiciTaxi",
+  "short_name": "BiciTaxi",
   "description": "Chame um bicitáxi em Afuá com um toque",
   "start_url": "/",
   "display": "standalone",

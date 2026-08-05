@@ -1,5 +1,5 @@
 {
-  "appName": "BiciUber",
+  "appName": "BiciTaxi",
   "tagline": "O bicitáxi de Afuá, a um toque",
   "description": "Uma forma simples de encontrar transporte para moradores e visitantes.",
   "callRide": "Chamar um bicitáxi",
@@ -31,6 +31,12 @@
   "rideCode": "Código da corrida",
   "expiresAt": "Expira às",
   "cancelRideDisabledNotice": "Cancelar solicitação (em breve)",
+  "cancelRide": "Cancelar solicitação",
+  "cancelling": "Cancelando...",
+  "confirmCancelRide": "Deseja cancelar esta solicitação?",
+  "rideCancelledSuccess": "Solicitação cancelada.",
+  "errorRideNotCancellable": "Esta solicitação não pode mais ser cancelada.",
+  "errorCancelRideFailed": "Não foi possível cancelar a solicitação. Tente novamente.",
   "yes": "Sim",
   "no": "Não",
   "loadingRequests": "Buscando solicitações...",
@@ -47,7 +53,9 @@
   "whatsappPassenger": "Conversar no WhatsApp",
   "activeRideTitle": "Corrida em Andamento",
   "statusAccepted": "Aceita / A caminho",
-  "whatsappDefaultMessage": "Olá, sou o bicitaxista que aceitou sua solicitação no BiciUber.",
+  "whatsappDefaultMessage": "Olá, sou o bicitaxista que aceitou sua solicitação no BiciTaxi.",
   "timeAgo": "há {{time}}",
-  "timeJustNow": "agora mesmo"
+  "timeJustNow": "agora mesmo",
+  "checkingActiveRide": "Verificando corrida ativa...",
+  "rideNoLongerActive": "A corrida não está mais ativa."
 }

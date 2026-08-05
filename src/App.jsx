@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "./lib/supabaseClient";
-import { createRide, getPendingRides, acceptRide } from "./services/rides.js";
+import { createRide, getPendingRides, acceptRide, cancelRide, getDriverActiveRide } from "./services/rides.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
 
@@ -48,7 +48,7 @@ function TopBar({ subtitle }) {
       <Logo size={36} />
       <div>
         <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{subtitle}</p>
-        <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: -0.3 }}>BiciUber</h1>
+        <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: -0.3 }}>BiciTaxi</h1>
       </div>
     </div>
   );
@@ -67,14 +67,32 @@ function RouteLine({ progress = 0.2 }) {
   );
 }
 
-function Button({ children, onClick, disabled, variant = "primary" }) {
+function Button({ children, onClick, disabled, variant = "primary", style = {}, className = "btn" }) {
   const styles = {
     primary: { background: disabled ? C.surfaceAlt : "#fff", color: disabled ? C.textMuted : "#000" },
     secondary: { background: C.surfaceAlt, color: "#fff", border: `1px solid ${C.border}` },
     decline: { background: "transparent", color: C.textMuted, border: `1px solid ${C.border}` },
   };
   return (
-    <button className="btn" onClick={onClick} disabled={disabled} style={{ ...styles[variant], padding: "14px 18px", borderRadius: 12, fontWeight: 700, fontSize: 15, width: "100%" }}>
+    <button
+      className={className}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        ...styles[variant],
+        padding: "14px 18px",
+        borderRadius: 12,
+        fontWeight: 700,
+        fontSize: 15,
+        width: "100%",
+        minHeight: 52,
+        position: "static",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        ...style
+      }}
+    >
       {children}
     </button>
   );
@@ -107,6 +125,9 @@ function PassengerApp() {
   const [notes, setNotes] = useState("");
 
   const [activeRide, setActiveRide] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelErrorMsg, setCancelErrorMsg] = useState("");
+  const [cancelSuccessMsg, setCancelSuccessMsg] = useState("");
 
   // Restauração de Sessão (biciuber-active-ride)
   useEffect(() => {
@@ -135,6 +156,8 @@ function PassengerApp() {
   const handleFormSubmit = async (e) => {
     if (e) e.preventDefault();
     setErrorMsg("");
+    setCancelSuccessMsg("");
+    setCancelErrorMsg("");
 
     const trimmedName = name.trim();
     const trimmedPhone = phone.trim();
@@ -202,12 +225,52 @@ function PassengerApp() {
     }
   };
 
+  const handleCancelRide = async () => {
+    if (!activeRide || cancelling) return;
+
+    const confirmMsg = t("confirmCancelRide", { defaultValue: "Deseja cancelar esta solicitação?" });
+    const confirmed = window.confirm(confirmMsg);
+    if (!confirmed) return;
+
+    setCancelling(true);
+    setCancelErrorMsg("");
+
+    try {
+      await cancelRide(activeRide.id, activeRide.publicTrackingToken);
+
+      localStorage.removeItem("biciuber-active-ride");
+      setActiveRide(null);
+      setStage("form");
+      setCancelSuccessMsg(t("rideCancelledSuccess", { defaultValue: "Solicitação cancelada." }));
+    } catch (err) {
+      console.error("Erro ao cancelar solicitação de corrida pelo passageiro:", {
+        rideId: activeRide.id,
+        token: activeRide.publicTrackingToken,
+        error: err
+      });
+
+      if (err.code === "RIDE_NOT_CANCELLABLE" || err.message?.includes("RIDE_NOT_CANCELLABLE")) {
+        setCancelErrorMsg(t("errorRideNotCancellable", { defaultValue: "Esta solicitação não pode mais ser cancelada." }));
+      } else {
+        setCancelErrorMsg(t("errorCancelRideFailed", { defaultValue: "Não foi possível cancelar a solicitação. Tente novamente." }));
+      }
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
       <TopBar subtitle="Passageiro" />
       <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
         {stage === "form" && (
           <form onSubmit={handleFormSubmit} className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {cancelSuccessMsg && (
+              <p style={{ color: C.online, fontSize: 13.5, margin: 0, fontWeight: 600, textAlign: "center" }}>
+                {cancelSuccessMsg}
+              </p>
+            )}
+
             <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>Onde você tá e pra onde vai?</p>
             
             <div>
@@ -399,24 +462,34 @@ function PassengerApp() {
               )}
             </div>
 
-            <button
-              className="btn"
-              disabled
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: 12,
-                background: C.surfaceAlt,
-                color: C.textMuted,
-                border: `1px solid ${C.border}`,
-                fontWeight: 600,
-                fontSize: 14,
-                cursor: "not-allowed",
-                opacity: 0.7
-              }}
-            >
-              {t("cancelRideDisabledNotice", { defaultValue: "Cancelar solicitação (em breve)" })}
-            </button>
+            {cancelErrorMsg && (
+              <p style={{ color: "#ff6b6b", fontSize: 13, margin: 0, fontWeight: 500, textAlign: "center" }}>
+                {cancelErrorMsg}
+              </p>
+            )}
+
+            <div style={{ marginTop: 4, width: "100%", position: "static" }}>
+              <Button
+                onClick={handleCancelRide}
+                disabled={cancelling}
+                variant="decline"
+                style={{
+                  width: "100%",
+                  minHeight: 52,
+                  borderRadius: 12,
+                  background: cancelling ? C.surfaceAlt : "transparent",
+                  color: cancelling ? C.textMuted : "#ff6b6b",
+                  border: `1px solid ${cancelling ? C.border : "#ff6b6b"}`,
+                  fontWeight: 700,
+                  fontSize: 15,
+                  position: "static"
+                }}
+              >
+                {cancelling
+                  ? t("cancelling", { defaultValue: "Cancelando..." })
+                  : t("cancelRide", { defaultValue: "Cancelar solicitação" })}
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -482,22 +555,7 @@ function DriverApp({ driver, onLogout }) {
   const [refreshing, setRefreshing] = useState(false);
   const [acceptingRideId, setAcceptingRideId] = useState(null);
   const [activeDriverRide, setActiveDriverRide] = useState(null);
-
-  // Restauração de Sessão do Motorista (biciuber-driver-active-ride)
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("biciuber-driver-active-ride");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.id && parsed.status === "ACCEPTED") {
-          setActiveDriverRide(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Erro ao ler localStorage biciuber-driver-active-ride:", e);
-      localStorage.removeItem("biciuber-driver-active-ride");
-    }
-  }, []);
+  const [checkingActiveRide, setCheckingActiveRide] = useState(true);
 
   const loadPendingRides = async (isManualRefresh = false) => {
     if (isManualRefresh) {
@@ -524,11 +582,102 @@ function DriverApp({ driver, onLogout }) {
     }
   };
 
+  // Restauração e Validação Segura da Corrida Ativa no Supabase
   useEffect(() => {
-    if (!activeDriverRide) {
-      loadPendingRides();
+    let isMounted = true;
+
+    async function verifyDriverActiveRide() {
+      if (!driver || !driver.id) {
+        localStorage.removeItem("biciuber-driver-active-ride");
+        if (isMounted) {
+          setActiveDriverRide(null);
+          setCheckingActiveRide(false);
+        }
+        return;
+      }
+
+      setCheckingActiveRide(true);
+      setErrorMsg("");
+
+      let savedRide = null;
+      try {
+        const savedRaw = localStorage.getItem("biciuber-driver-active-ride");
+        if (savedRaw) {
+          savedRide = JSON.parse(savedRaw);
+        }
+      } catch (e) {
+        console.error("Erro ao ler localStorage biciuber-driver-active-ride:", e);
+        localStorage.removeItem("biciuber-driver-active-ride");
+      }
+
+      if (!savedRide || !savedRide.id) {
+        localStorage.removeItem("biciuber-driver-active-ride");
+        if (isMounted) {
+          setActiveDriverRide(null);
+          setCheckingActiveRide(false);
+          loadPendingRides();
+        }
+        return;
+      }
+
+      try {
+        const activeFromDb = await getDriverActiveRide(savedRide.id, driver.id);
+
+        if (!isMounted) return;
+
+        if (activeFromDb) {
+          const activeData = {
+            id: activeFromDb.id,
+            status: activeFromDb.status,
+            passenger_name: activeFromDb.passenger_name,
+            passenger_phone: activeFromDb.passenger_phone,
+            pickup_description: activeFromDb.pickup_description,
+            destination_description: activeFromDb.destination_description,
+            passenger_count: activeFromDb.passenger_count,
+            has_luggage: activeFromDb.has_luggage,
+            notes: activeFromDb.notes,
+            driver_id: activeFromDb.driver_id,
+            created_at: activeFromDb.created_at,
+            accepted_at: activeFromDb.accepted_at,
+            driver_arrived_at: activeFromDb.driver_arrived_at,
+            started_at: activeFromDb.started_at,
+            expires_at: activeFromDb.expires_at,
+          };
+
+          localStorage.setItem("biciuber-driver-active-ride", JSON.stringify(activeData));
+          setActiveDriverRide(activeData);
+        } else {
+          localStorage.removeItem("biciuber-driver-active-ride");
+          setActiveDriverRide(null);
+          setErrorMsg(t("rideNoLongerActive", { defaultValue: "A corrida não está mais ativa." }));
+          loadPendingRides();
+        }
+      } catch (err) {
+        console.error("Erro técnico ao verificar corrida ativa no Supabase:", err);
+        if (!isMounted) return;
+        localStorage.removeItem("biciuber-driver-active-ride");
+        setActiveDriverRide(null);
+        setErrorMsg(t("errorLoadRequestsFailed", { defaultValue: "Não foi possível carregar as solicitações." }));
+        setStatus("error");
+      } finally {
+        if (isMounted) {
+          setCheckingActiveRide(false);
+        }
+      }
     }
-  }, [activeDriverRide]);
+
+    verifyDriverActiveRide();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [driver?.id]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("biciuber-driver-active-ride");
+    setActiveDriverRide(null);
+    onLogout();
+  };
 
   const handleAcceptRide = async (rideToAccept) => {
     if (!driver || !driver.id) {
@@ -552,6 +701,7 @@ function DriverApp({ driver, onLogout }) {
         passenger_count: acceptedRide.passenger_count,
         has_luggage: acceptedRide.has_luggage,
         notes: acceptedRide.notes,
+        driver_id: acceptedRide.driver_id,
         accepted_at: acceptedRide.accepted_at,
         expires_at: acceptedRide.expires_at,
       };
@@ -590,11 +740,11 @@ function DriverApp({ driver, onLogout }) {
       </div>
 
       <div style={{ padding: "10px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button className="btn" onClick={onLogout} style={{ background: "transparent", color: C.textMuted, fontSize: 12, textDecoration: "underline", padding: 0 }}>
+        <button className="btn" onClick={handleLogout} style={{ background: "transparent", color: C.textMuted, fontSize: 12, textDecoration: "underline", padding: 0 }}>
           sair
         </button>
 
-        {!activeDriverRide && (
+        {!checkingActiveRide && !activeDriverRide && (
           <button
             className="btn"
             onClick={() => loadPendingRides(true)}
@@ -622,8 +772,15 @@ function DriverApp({ driver, onLogout }) {
         )}
       </div>
 
-      <div style={{ flex: 1, padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-        {activeDriverRide ? (
+      <div style={{ flex: 1, padding: "20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+        {checkingActiveRide ? (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "60px 0" }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${C.border}`, borderTopColor: C.online, animation: "spin 0.8s linear infinite" }} />
+            <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
+              {t("checkingActiveRide", { defaultValue: "Verificando corrida ativa..." })}
+            </p>
+          </div>
+        ) : activeDriverRide ? (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: C.surface, border: `1px solid ${C.online}`, borderRadius: 16, padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -671,7 +828,7 @@ function DriverApp({ driver, onLogout }) {
                 <a
                   href={formatWhatsappUrl(
                     activeDriverRide.passenger_phone,
-                    t("whatsappDefaultMessage", { defaultValue: "Olá, sou o bicitaxista que aceitou sua solicitação no BiciUber." })
+                    t("whatsappDefaultMessage", { defaultValue: "Olá, sou o bicitaxista que aceitou sua solicitação no BiciTaxi." })
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -701,12 +858,12 @@ function DriverApp({ driver, onLogout }) {
               <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("pickupLocation", { defaultValue: "Partida" })}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeDriverRide.pickup_description}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word" }}>{activeDriverRide.pickup_description}</p>
                 </div>
 
                 <div>
                   <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("destinationLocation", { defaultValue: "Destino" })}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeDriverRide.destination_description}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word" }}>{activeDriverRide.destination_description}</p>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.textMuted, borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
@@ -715,7 +872,7 @@ function DriverApp({ driver, onLogout }) {
                 </div>
 
                 {activeDriverRide.notes && (
-                  <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", padding: "8px 10px", borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word" }}>
                     <strong>Obs:</strong> {activeDriverRide.notes}
                   </div>
                 )}
@@ -766,7 +923,22 @@ function DriverApp({ driver, onLogout }) {
               const isAnyAccepting = !!acceptingRideId;
 
               return (
-                <div key={r.id} className="fade-in" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div
+                  key={r.id}
+                  className="fade-in driver-ride-card"
+                  style={{
+                    background: C.surface,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 14,
+                    padding: 16,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    height: "auto",
+                    overflow: "visible",
+                    minWidth: 0
+                  }}
+                >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: 11.5, color: "#fff", background: C.surfaceAlt, padding: "3px 8px", borderRadius: 8, fontFamily: "monospace", fontWeight: 700 }}>
                       #{r.id ? r.id.slice(0, 6).toUpperCase() : ""}
@@ -776,18 +948,18 @@ function DriverApp({ driver, onLogout }) {
                     </span>
                   </div>
 
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       {t("pickupLocation", { defaultValue: "Ponto de partida" })}
                     </p>
-                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{r.pickup_description}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word", overflowWrap: "anywhere" }}>{r.pickup_description}</p>
                   </div>
 
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       {t("destinationLocation", { defaultValue: "Destino" })}
                     </p>
-                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{r.destination_description}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word", overflowWrap: "anywhere" }}>{r.destination_description}</p>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.textMuted, borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
@@ -796,7 +968,7 @@ function DriverApp({ driver, onLogout }) {
                   </div>
 
                   {r.notes && (
-                    <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", border: "1px solid rgba(242, 201, 76, 0.2)", padding: "8px 10px", borderRadius: 8 }}>
+                    <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", border: "1px solid rgba(242, 201, 76, 0.2)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word", overflowWrap: "anywhere" }}>
                       <strong>Obs:</strong> {r.notes}
                     </div>
                   )}
@@ -805,10 +977,17 @@ function DriverApp({ driver, onLogout }) {
                     {t("expiresAt", { defaultValue: "Expira às" })} {new Date(r.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
 
-                  <div style={{ marginTop: 4 }}>
+                  <div style={{ marginTop: 16, width: "100%", position: "static" }}>
                     <Button
                       onClick={() => handleAcceptRide(r)}
                       disabled={isAnyAccepting}
+                      className="btn accept-ride-btn"
+                      style={{
+                        width: "100%",
+                        minHeight: 52,
+                        marginTop: 0,
+                        position: "static"
+                      }}
                     >
                       {isAcceptingThis
                         ? t("accepting", { defaultValue: "Aceitando..." })
@@ -1040,7 +1219,7 @@ export default function App() {
               <DriverLogin onLogin={(d) => { setLoggedDriver(d); setView("driverApp"); }} />
             )}
             {view === "driverApp" && loggedDriver && (
-              <DriverApp driver={loggedDriver} onLogout={() => { setLoggedDriver(null); setView("driverLogin"); }} />
+              <DriverApp driver={loggedDriver} onLogout={() => { localStorage.removeItem("biciuber-driver-active-ride"); setLoggedDriver(null); setView("driverLogin"); }} />
             )}
             {view === "admin" && <AdminApp />}
           </div>

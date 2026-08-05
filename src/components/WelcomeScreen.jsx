@@ -57,7 +57,7 @@ export default function WelcomeScreen({
 
         <div className="welcome__copy">
           <h1 className="welcome__title">
-            {t("appName", { defaultValue: "BiciUber" })}
+            {t("appName", { defaultValue: "BiciTaxi" })}
           </h1>
 
           <p className="welcome__tagline">

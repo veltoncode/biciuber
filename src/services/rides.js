@@ -98,3 +98,66 @@ export async function acceptRide(rideId, driverId) {
 
   return accepted;
 }
+
+/**
+ * Cancela uma corrida solicitada utilizando a RPC cancel_ride no Supabase.
+ *
+ * @param {string} rideId UUID da corrida
+ * @param {string} publicTrackingToken UUID do token de acompanhamento do passageiro
+ * @returns {Promise<Object>} Dados da corrida cancelada (id, status, cancelled_at, driver_id)
+ */
+export async function cancelRide(rideId, publicTrackingToken) {
+  const { data, error } = await supabase.rpc("cancel_ride", {
+    p_ride_id: rideId,
+    p_public_tracking_token: publicTrackingToken,
+  });
+
+  if (error) {
+    console.error("Erro técnico ao executar RPC cancel_ride no Supabase:", error);
+    if (error.message && error.message.includes("RIDE_NOT_CANCELLABLE")) {
+      const customErr = new Error("RIDE_NOT_CANCELLABLE");
+      customErr.code = "RIDE_NOT_CANCELLABLE";
+      throw customErr;
+    }
+    throw error;
+  }
+
+  const cancelled = Array.isArray(data) ? data[0] : data;
+  if (!cancelled) {
+    const customErr = new Error("RIDE_NOT_CANCELLABLE");
+    customErr.code = "RIDE_NOT_CANCELLABLE";
+    throw customErr;
+  }
+
+  return cancelled;
+}
+
+/**
+ * Consulta uma corrida ativa do motorista no Supabase.
+ *
+ * @param {string} rideId UUID da corrida
+ * @param {string} driverId UUID do motorista
+ * @returns {Promise<Object|null>} Dados da corrida ativa ou null se não for válida/ativa
+ */
+export async function getDriverActiveRide(rideId, driverId) {
+  if (!rideId || !driverId) return null;
+
+  const { data, error } = await supabase
+    .from("rides")
+    .select(
+      "id, passenger_name, passenger_phone, pickup_description, destination_description, passenger_count, has_luggage, notes, status, driver_id, created_at, accepted_at, driver_arrived_at, started_at, expires_at"
+    )
+    .eq("id", rideId)
+    .eq("driver_id", driverId)
+    .in("status", ["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"])
+    .maybeSingle();
+
+  if (error) {
+    console.error("Erro técnico ao consultar corrida ativa do motorista no Supabase:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+

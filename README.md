@@ -1,4 +1,4 @@
-# BiciUber
+# BiciTaxi
 
 App para chamar bicitáxi em Afuá, feito com React + Vite + Supabase. PWA instalável (sem loja de app).
 
