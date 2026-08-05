@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "./lib/supabaseClient";
-import { createRide, getPendingRides, acceptRide, cancelRide, getActiveRideForDriver, getDriverById } from "./services/rides.js";
+import {
+  createRide,
+  getPendingRides,
+  acceptRide,
+  cancelRide,
+  getActiveRideForDriver,
+  getDriverById,
+  updateRideStatus,
+} from "./services/rides.js";
 import { subscribeToRide, subscribeToPendingRides, subscribeToDriverRide } from "./services/rideRealtime.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
