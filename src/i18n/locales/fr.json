@@ -57,5 +57,16 @@
   "timeAgo": "il y a {{time}}",
   "timeJustNow": "à l'instant",
   "checkingActiveRide": "Vérification de la course active...",
-  "rideNoLongerActive": "La course n’est plus active."
+  "rideNoLongerActive": "La course n’est plus active.",
+  "errorCheckActiveRideFailed": "Impossible de vérifier votre course active.",
+  "liveConnectionActive": "Connexion en temps réel active",
+  "reconnecting": "Reconnexion...",
+  "liveConnectionFailed": "Échec de la connexion en temps réel",
+  "statusDriverFound": "Bicitaxi trouvé",
+  "statusDriverArriving": "Bicitaxi en route",
+  "statusDriverArrived": "Bicitaxi arrivé",
+  "statusInProgress": "Course en cours",
+  "statusCompleted": "Course terminée",
+  "driverCancelled": "Le passager a annulé la course.",
+  "rideExpired": "Aucun conducteur de bicitaxi n’a accepté la demande à temps."
 }

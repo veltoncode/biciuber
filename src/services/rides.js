@@ -133,23 +133,23 @@ export async function cancelRide(rideId, publicTrackingToken) {
 }
 
 /**
- * Consulta uma corrida ativa do motorista no Supabase.
+ * Consulta a corrida ativa mais recente pertencente ao motorista no Supabase.
  *
- * @param {string} rideId UUID da corrida
  * @param {string} driverId UUID do motorista
- * @returns {Promise<Object|null>} Dados da corrida ativa ou null se não for válida/ativa
+ * @returns {Promise<Object|null>} Dados da corrida ativa ou null se não for encontrada
  */
-export async function getDriverActiveRide(rideId, driverId) {
-  if (!rideId || !driverId) return null;
+export async function getActiveRideForDriver(driverId) {
+  if (!driverId) return null;
 
   const { data, error } = await supabase
     .from("rides")
     .select(
-      "id, passenger_name, passenger_phone, pickup_description, destination_description, passenger_count, has_luggage, notes, status, driver_id, created_at, accepted_at, driver_arrived_at, started_at, expires_at"
+      "id, passenger_name, passenger_phone, pickup_description, destination_description, passenger_count, has_luggage, notes, status, driver_id, created_at, accepted_at, driver_arrived_at, started_at, completed_at, cancelled_at"
     )
-    .eq("id", rideId)
     .eq("driver_id", driverId)
     .in("status", ["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"])
+    .order("accepted_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) {
@@ -159,5 +159,29 @@ export async function getDriverActiveRide(rideId, driverId) {
 
   return data || null;
 }
+
+/**
+ * Consulta os dados públicos e seguros de um motorista específico.
+ *
+ * @param {string} driverId UUID do motorista
+ * @returns {Promise<Object|null>} Dados do motorista
+ */
+export async function getDriverById(driverId) {
+  if (!driverId) return null;
+
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("id, name, phone, plate, is_available")
+    .eq("id", driverId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Erro técnico ao consultar motorista por ID no Supabase:", error);
+    throw error;
+  }
+
+  return data || null;
+}
+
 
 

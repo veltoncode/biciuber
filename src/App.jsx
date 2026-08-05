@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "./lib/supabaseClient";
-import { createRide, getPendingRides, acceptRide, cancelRide, getDriverActiveRide } from "./services/rides.js";
+import { createRide, getPendingRides, acceptRide, cancelRide, getActiveRideForDriver, getDriverById } from "./services/rides.js";
+import { subscribeToRide, subscribeToPendingRides, subscribeToDriverRide } from "./services/rideRealtime.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
 
@@ -129,6 +130,9 @@ function PassengerApp() {
   const [cancelErrorMsg, setCancelErrorMsg] = useState("");
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState("");
 
+  const [liveStatus, setLiveStatus] = useState("");
+  const [driverInfo, setDriverInfo] = useState(null);
+
   // Restauração de Sessão (biciuber-active-ride)
   useEffect(() => {
     try {
@@ -137,7 +141,7 @@ function PassengerApp() {
         const parsed = JSON.parse(saved);
         if (
           parsed &&
-          parsed.status === "REQUESTED" &&
+          (parsed.status === "REQUESTED" || parsed.status === "ACCEPTED" || parsed.status === "DRIVER_ARRIVING" || parsed.status === "DRIVER_ARRIVED" || parsed.status === "IN_PROGRESS") &&
           parsed.expiresAt &&
           new Date(parsed.expiresAt) > new Date()
         ) {
@@ -152,6 +156,77 @@ function PassengerApp() {
       localStorage.removeItem("biciuber-active-ride");
     }
   }, []);
+
+  // Supabase Realtime para a corrida ativa do Passageiro
+  useEffect(() => {
+    if (!activeRide || cancelling) return;
+
+    const loadDriver = async (driverId) => {
+      try {
+        const d = await getDriverById(driverId);
+        if (d) setDriverInfo(d);
+      } catch (err) {
+        console.error("Erro ao buscar motorista:", err);
+      }
+    };
+
+    // Se já foi restaurada uma corrida aceita do localStorage sem driverInfo, busca logo.
+    if (activeRide.driver_id && !driverInfo) {
+      loadDriver(activeRide.driver_id);
+    }
+
+    const unsubscribe = subscribeToRide(activeRide.id, {
+      onStatusChange: (status) => {
+        if (status === "SUBSCRIBED") {
+          setLiveStatus(t("liveConnectionActive", { defaultValue: "Conectado em tempo real" }));
+        } else if (status === "TIMED_OUT" || status === "CLOSED") {
+          setLiveStatus(t("reconnecting", { defaultValue: "Reconectando..." }));
+        } else if (status === "CHANNEL_ERROR") {
+          setLiveStatus(t("liveConnectionFailed", { defaultValue: "Falha na conexão" }));
+        }
+      },
+      onUpdate: (newRide) => {
+        // Atualiza a UI se o status for um dos ativos
+        if (["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"].includes(newRide.status)) {
+          const updatedRide = { ...activeRide, ...newRide };
+          setActiveRide(updatedRide);
+          localStorage.setItem("biciuber-active-ride", JSON.stringify(updatedRide));
+          
+          if (newRide.driver_id && newRide.status === "ACCEPTED" && (!driverInfo || driverInfo.id !== newRide.driver_id)) {
+            loadDriver(newRide.driver_id);
+          }
+        } 
+        // Lida com cancelamentos ou conclusões
+        else if (newRide.status === "CANCELLED") {
+          localStorage.removeItem("biciuber-active-ride");
+          setActiveRide(null);
+          setDriverInfo(null);
+          setStage("form");
+          setCancelErrorMsg(t("driverCancelled", { defaultValue: "O passageiro cancelou a corrida." })); // Will override text in UI
+        }
+        else if (newRide.status === "COMPLETED") {
+          localStorage.removeItem("biciuber-active-ride");
+          setActiveRide(null);
+          setDriverInfo(null);
+          setStage("form");
+          setCancelSuccessMsg(t("statusCompleted", { defaultValue: "Corrida concluída" }));
+        }
+        else if (newRide.status === "EXPIRED") {
+          localStorage.removeItem("biciuber-active-ride");
+          setActiveRide(null);
+          setDriverInfo(null);
+          setStage("form");
+          setCancelErrorMsg(t("rideExpired", { defaultValue: "Nenhum bicitaxista aceitou a solicitação a tempo." }));
+        }
+      },
+      onError: (err) => {
+        console.error("Erro Realtime:", err);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [activeRide?.id, activeRide?.driver_id, cancelling, t]);
+
 
   const handleFormSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -262,6 +337,11 @@ function PassengerApp() {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
       <TopBar subtitle="Passageiro" />
+      {liveStatus && (
+        <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
+          {liveStatus}
+        </div>
+      )}
       <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
         {stage === "form" && (
           <form onSubmit={handleFormSubmit} className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -413,22 +493,63 @@ function PassengerApp() {
               textAlign: "center",
               gap: 14
             }}>
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: "50%",
-                border: `3px solid ${C.border}`,
-                borderTopColor: C.online,
-                animation: "spin 0.8s linear infinite"
-              }} />
-              <div>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
-                  {t("lookingForBicitaxi", { defaultValue: "Procurando um bicitáxi..." })}
-                </h3>
-                <p style={{ margin: "4px 0 0", fontSize: 12, color: C.textMuted }}>
-                  {t("rideCode", { defaultValue: "Código da corrida" })}: <strong style={{ color: "#fff", fontFamily: "monospace" }}>#{activeRide.id ? activeRide.id.slice(0, 6).toUpperCase() : ""}</strong>
-                </p>
-              </div>
+              {activeRide.status === "REQUESTED" ? (
+                <>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    border: `3px solid ${C.border}`,
+                    borderTopColor: C.online,
+                    animation: "spin 0.8s linear infinite"
+                  }} />
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
+                      {t("lookingForBicitaxi", { defaultValue: "Procurando um bicitáxi..." })}
+                    </h3>
+                    <p style={{ margin: "4px 0 0", fontSize: 12, color: C.textMuted }}>
+                      {t("rideCode", { defaultValue: "Código da corrida" })}: <strong style={{ color: "#fff", fontFamily: "monospace" }}>#{activeRide.id ? activeRide.id.slice(0, 6).toUpperCase() : ""}</strong>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background: "rgba(242, 201, 76, 0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: C.online
+                  }}>
+                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
+                      {activeRide.status === "ACCEPTED" && t("statusDriverFound", { defaultValue: "Bicitáxi encontrado" })}
+                      {activeRide.status === "DRIVER_ARRIVING" && t("statusDriverArriving", { defaultValue: "Bicitaxista a caminho" })}
+                      {activeRide.status === "DRIVER_ARRIVED" && t("statusDriverArrived", { defaultValue: "Bicitaxista chegou" })}
+                      {activeRide.status === "IN_PROGRESS" && t("statusInProgress", { defaultValue: "Corrida em andamento" })}
+                    </h3>
+                    {driverInfo && (
+                      <div style={{ marginTop: 12, padding: 12, background: C.bg, borderRadius: 12, textAlign: "left" }}>
+                        <p style={{ margin: 0, fontSize: 14, color: "#fff", fontWeight: 600 }}>{driverInfo.name}</p>
+                        <p style={{ margin: "4px 0", fontSize: 13, color: C.textMuted }}>Placa: <strong style={{color:"#fff"}}>{driverInfo.plate || "N/A"}</strong></p>
+                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                           <a href={`tel:${driverInfo.phone}`} style={{ flex: 1, textDecoration: "none" }}>
+                             <Button style={{ minHeight: 36, fontSize: 13, padding: "0 12px" }}>Ligar</Button>
+                           </a>
+                           <a href={`https://wa.me/55${driverInfo.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: "none" }}>
+                             <Button style={{ minHeight: 36, fontSize: 13, padding: "0 12px", background: "#25D366", color: "#fff" }}>WhatsApp</Button>
+                           </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -556,6 +677,8 @@ function DriverApp({ driver, onLogout }) {
   const [acceptingRideId, setAcceptingRideId] = useState(null);
   const [activeDriverRide, setActiveDriverRide] = useState(null);
   const [checkingActiveRide, setCheckingActiveRide] = useState(true);
+  const [liveStatus, setLiveStatus] = useState("");
+
 
   const loadPendingRides = async (isManualRefresh = false) => {
     if (isManualRefresh) {
@@ -582,13 +705,15 @@ function DriverApp({ driver, onLogout }) {
     }
   };
 
-  // Restauração e Validação Segura da Corrida Ativa no Supabase
+  // Restauração e Validação Segura da Corrida Ativa no Supabase (Zero LocalStorage)
   useEffect(() => {
     let isMounted = true;
 
+    // Limpar obrigatoriamente qualquer resíduo antigo de localStorage
+    localStorage.removeItem("biciuber-driver-active-ride");
+
     async function verifyDriverActiveRide() {
       if (!driver || !driver.id) {
-        localStorage.removeItem("biciuber-driver-active-ride");
         if (isMounted) {
           setActiveDriverRide(null);
           setCheckingActiveRide(false);
@@ -599,65 +724,22 @@ function DriverApp({ driver, onLogout }) {
       setCheckingActiveRide(true);
       setErrorMsg("");
 
-      let savedRide = null;
       try {
-        const savedRaw = localStorage.getItem("biciuber-driver-active-ride");
-        if (savedRaw) {
-          savedRide = JSON.parse(savedRaw);
-        }
-      } catch (e) {
-        console.error("Erro ao ler localStorage biciuber-driver-active-ride:", e);
-        localStorage.removeItem("biciuber-driver-active-ride");
-      }
-
-      if (!savedRide || !savedRide.id) {
-        localStorage.removeItem("biciuber-driver-active-ride");
-        if (isMounted) {
-          setActiveDriverRide(null);
-          setCheckingActiveRide(false);
-          loadPendingRides();
-        }
-        return;
-      }
-
-      try {
-        const activeFromDb = await getDriverActiveRide(savedRide.id, driver.id);
+        const activeFromDb = await getActiveRideForDriver(driver.id);
 
         if (!isMounted) return;
 
         if (activeFromDb) {
-          const activeData = {
-            id: activeFromDb.id,
-            status: activeFromDb.status,
-            passenger_name: activeFromDb.passenger_name,
-            passenger_phone: activeFromDb.passenger_phone,
-            pickup_description: activeFromDb.pickup_description,
-            destination_description: activeFromDb.destination_description,
-            passenger_count: activeFromDb.passenger_count,
-            has_luggage: activeFromDb.has_luggage,
-            notes: activeFromDb.notes,
-            driver_id: activeFromDb.driver_id,
-            created_at: activeFromDb.created_at,
-            accepted_at: activeFromDb.accepted_at,
-            driver_arrived_at: activeFromDb.driver_arrived_at,
-            started_at: activeFromDb.started_at,
-            expires_at: activeFromDb.expires_at,
-          };
-
-          localStorage.setItem("biciuber-driver-active-ride", JSON.stringify(activeData));
-          setActiveDriverRide(activeData);
+          setActiveDriverRide(activeFromDb);
         } else {
-          localStorage.removeItem("biciuber-driver-active-ride");
           setActiveDriverRide(null);
-          setErrorMsg(t("rideNoLongerActive", { defaultValue: "A corrida não está mais ativa." }));
           loadPendingRides();
         }
       } catch (err) {
         console.error("Erro técnico ao verificar corrida ativa no Supabase:", err);
         if (!isMounted) return;
-        localStorage.removeItem("biciuber-driver-active-ride");
         setActiveDriverRide(null);
-        setErrorMsg(t("errorLoadRequestsFailed", { defaultValue: "Não foi possível carregar as solicitações." }));
+        setErrorMsg(t("errorCheckActiveRideFailed", { defaultValue: "Não foi possível verificar sua corrida ativa." }));
         setStatus("error");
       } finally {
         if (isMounted) {
@@ -671,7 +753,81 @@ function DriverApp({ driver, onLogout }) {
     return () => {
       isMounted = false;
     };
-  }, [driver?.id]);
+  }, [driver?.id, t]);
+
+  // Realtime para Lista de Pendentes
+  useEffect(() => {
+    if (activeDriverRide || checkingActiveRide) return;
+
+    const unsubscribe = subscribeToPendingRides({
+      onStatusChange: (s) => {
+        if (s === "SUBSCRIBED") setLiveStatus(t("liveConnectionActive", { defaultValue: "Conectado em tempo real" }));
+        else if (s === "TIMED_OUT" || s === "CLOSED") setLiveStatus(t("reconnecting", { defaultValue: "Reconectando..." }));
+        else if (s === "CHANNEL_ERROR") setLiveStatus(t("liveConnectionFailed", { defaultValue: "Falha na conexão" }));
+      },
+      onPendingCreated: (ride) => {
+        setRides(prev => {
+          if (prev.find(r => r.id === ride.id)) return prev;
+          const newList = [ride, ...prev].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+          setStatus(newList.length > 0 ? "success" : "empty");
+          return newList;
+        });
+      },
+      onPendingUpdated: (ride) => {
+        setRides(prev => prev.map(r => r.id === ride.id ? ride : r));
+      },
+      onPendingRemoved: (ride) => {
+        setRides(prev => {
+          const newList = prev.filter(r => r.id !== ride.id);
+          setStatus(newList.length > 0 ? "success" : "empty");
+          return newList;
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [activeDriverRide, checkingActiveRide, t]);
+
+  // Realtime para Corrida Ativa do Motorista
+  useEffect(() => {
+    if (!driver || !driver.id) return;
+
+    const unsubscribe = subscribeToDriverRide(driver.id, {
+      onActiveRideUpdated: (ride) => {
+        setActiveDriverRide(ride);
+      },
+      onActiveRideEnded: (ride) => {
+        if (activeDriverRide && activeDriverRide.id === ride.id) {
+          setActiveDriverRide(null);
+          
+          if (ride.status === "CANCELLED") {
+             alert(t("driverCancelled", { defaultValue: "O passageiro cancelou a corrida." }));
+          }
+          
+          loadPendingRides();
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [driver?.id, activeDriverRide?.id, t]);
+
+  // Auto-expiração visual a cada 30s
+  useEffect(() => {
+    if (activeDriverRide || checkingActiveRide) return;
+
+    const interval = setInterval(() => {
+      setRides(prev => {
+        const now = new Date();
+        const valid = prev.filter(r => new Date(r.expires_at) > now);
+        if (valid.length !== prev.length) {
+           setStatus(valid.length > 0 ? "success" : "empty");
+        }
+        return valid;
+      });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [activeDriverRide, checkingActiveRide]);
+
 
   const handleLogout = () => {
     localStorage.removeItem("biciuber-driver-active-ride");
@@ -691,23 +847,8 @@ function DriverApp({ driver, onLogout }) {
     try {
       const acceptedRide = await acceptRide(rideToAccept.id, driver.id);
 
-      const activeData = {
-        id: acceptedRide.id,
-        status: acceptedRide.status,
-        passenger_name: acceptedRide.passenger_name,
-        passenger_phone: acceptedRide.passenger_phone,
-        pickup_description: acceptedRide.pickup_description,
-        destination_description: acceptedRide.destination_description,
-        passenger_count: acceptedRide.passenger_count,
-        has_luggage: acceptedRide.has_luggage,
-        notes: acceptedRide.notes,
-        driver_id: acceptedRide.driver_id,
-        accepted_at: acceptedRide.accepted_at,
-        expires_at: acceptedRide.expires_at,
-      };
-
-      localStorage.setItem("biciuber-driver-active-ride", JSON.stringify(activeData));
-      setActiveDriverRide(activeData);
+      // Manter corrida aceita apenas no estado React (sem salvar em localStorage)
+      setActiveDriverRide(acceptedRide);
       setRides((rs) => rs.filter((r) => r.id !== rideToAccept.id));
     } catch (err) {
       console.error("Erro ao aceitar corrida:", err);
@@ -726,6 +867,11 @@ function DriverApp({ driver, onLogout }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
       <TopBar subtitle="Bicitaxista" />
+      {liveStatus && (
+        <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
+          {liveStatus}
+        </div>
+      )}
       
       <div style={{ padding: "16px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>

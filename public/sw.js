@@ -1,4 +1,4 @@
-const CACHE_NAME = "biciuber-v2";
+const CACHE_NAME = "bicitaxi-v3";
 
 const CORE_ASSETS = [
   "/",

@@ -57,5 +57,16 @@
   "timeAgo": "{{time}} ago",
   "timeJustNow": "just now",
   "checkingActiveRide": "Checking active ride...",
-  "rideNoLongerActive": "The ride is no longer active."
+  "rideNoLongerActive": "The ride is no longer active.",
+  "errorCheckActiveRideFailed": "We couldn't check your active ride.",
+  "liveConnectionActive": "Live connection active",
+  "reconnecting": "Reconnecting...",
+  "liveConnectionFailed": "Live connection failed",
+  "statusDriverFound": "Bicitaxi found",
+  "statusDriverArriving": "Bicitaxi arriving",
+  "statusDriverArrived": "Bicitaxi arrived",
+  "statusInProgress": "Ride in progress",
+  "statusCompleted": "Ride completed",
+  "driverCancelled": "The passenger cancelled the ride.",
+  "rideExpired": "No bicitaxi driver accepted the request in time."
 }
