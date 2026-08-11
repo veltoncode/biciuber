@@ -1,12 +1,12 @@
 :root {
-  --welcome-bg: #050505;
-  --welcome-surface: #0d0d0e;
-  --welcome-text: #ffffff;
-  --welcome-muted: #9b9ba1;
-  --welcome-gold: #f6c64f;
-  --welcome-gold-light: #ffda72;
-  --welcome-gold-dark: #d89e20;
-  --welcome-border: rgba(255, 255, 255, 0.24);
+  --welcome-bg: var(--background);
+  --welcome-surface: var(--surface);
+  --welcome-text: var(--textPrimary);
+  --welcome-muted: var(--textSecondary);
+  --welcome-gold: var(--primary);
+  --welcome-gold-light: var(--primaryGlow);
+  --welcome-gold-dark: var(--primary);
+  --welcome-border: var(--border);
 }
 
 .welcome,
@@ -36,14 +36,7 @@
 
   color: var(--welcome-text);
 
-  background:
-    radial-gradient(
-      circle at 50% 22%,
-      rgba(246, 198, 79, 0.08),
-      rgba(246, 198, 79, 0.02) 30%,
-      transparent 54%
-    ),
-    linear-gradient(180deg, #09090a, #050505 52%, #070707);
+  background: transparent;
 }
 
 .welcome__ambient {
@@ -62,7 +55,7 @@
   background:
     radial-gradient(
       circle,
-      rgba(246, 198, 79, 0.06),
+      rgba(24, 201, 120, 0.08),
       transparent 68%
     );
 }
@@ -243,22 +236,13 @@
   border: 0;
   color: #080808;
 
-  background:
-    linear-gradient(
-      105deg,
-      var(--welcome-gold-dark),
-      var(--welcome-gold) 32%,
-      var(--welcome-gold-light) 53%,
-      var(--welcome-gold) 74%,
-      var(--welcome-gold-dark)
-    );
+  background: var(--gradient-primary);
 
   background-size: 185% 100%;
 
   box-shadow:
-    0 13px 36px rgba(246, 198, 79, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.44),
-    inset 0 -1px 0 rgba(107, 65, 0, 0.25);
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.4),
+    0 11px 26px -8px rgba(24, 201, 120, 0.45);
 
   animation: welcome-button-shimmer 5.5s ease-in-out infinite;
 }
@@ -443,17 +427,16 @@
   border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 999px;
 
-  color: #eeeeef;
-  background: rgba(9, 9, 10, 0.86);
-  backdrop-filter: blur(13px);
+  color: #000;
+  background: var(--gradient-primary);
 
   font-size: 13px;
   font-weight: 650;
   cursor: pointer;
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 4px 15px rgba(24, 201, 120, 0.2);
 }
 
 .language-selector__menu {

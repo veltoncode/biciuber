@@ -8,16 +8,7 @@ export default function BicitaxiIcon({
   variant,
   decorative = false,
 }) {
-  const isDark =
-    variant === "dark" ||
-    color === "currentColor" ||
-    color === "#000000" ||
-    color === "#000" ||
-    color === "#080808";
-
-  const imgSrc = isDark
-    ? "/icons/bicitaxi-afua-dark.png"
-    : "/icons/bicitaxi-afua.png";
+  const imgSrc = "/icons/bicitaxi-afua-transparent.png";
 
   return (
     <img

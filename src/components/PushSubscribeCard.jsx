@@ -11,13 +11,13 @@ import {
 } from "../services/pushNotifications";
 
 const C = {
-  bg: "#000000",
-  surface: "#1A1A1A",
-  surfaceAlt: "#2A2A2A",
-  text: "#FFFFFF",
-  textMuted: "#9A9A9A",
-  online: "#F2C94C", // Amarelo bicitáxi
-  border: "#333333"
+  bg: "var(--background)",
+  surface: "var(--surface)",
+  surfaceAlt: "var(--surfaceElevated)",
+  text: "var(--textPrimary)",
+  textMuted: "var(--textSecondary)",
+  online: "var(--primary)",
+  border: "var(--border)"
 };
 
 export default function PushSubscribeCard({ userType, driverId, rideId, publicTrackingToken }) {
@@ -94,7 +94,7 @@ export default function PushSubscribeCard({ userType, driverId, rideId, publicTr
           <h4 style={{ margin: "0 0 4px", fontSize: 14, color: "#fff" }}>{title}</h4>
           <p style={{ margin: "0 0 12px", fontSize: 12, color: C.textMuted }}>{desc}</p>
           
-          {errorMsg && <p style={{ margin: "0 0 8px", fontSize: 12, color: "#ff6b6b" }}>{errorMsg}</p>}
+          {errorMsg && <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--error)" }}>{errorMsg}</p>}
           
           <button 
             className="btn" 

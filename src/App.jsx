@@ -18,13 +18,13 @@ import PushSubscribeCard from "./components/PushSubscribeCard.jsx";
 import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPref } from "./services/appAlerts.js";
 
 const C = {
-  bg: "#000000",
-  surface: "#111111",
-  surfaceAlt: "#1C1C1C",
-  border: "#2A2A2A",
-  text: "#FFFFFF",
-  textMuted: "#9A9A9A",
-  online: "#3ECF6E",
+  bg: "var(--background)",
+  surface: "var(--surface)",
+  surfaceAlt: "var(--surfaceElevated)",
+  border: "var(--border)",
+  text: "var(--textPrimary)",
+  textMuted: "var(--textSecondary)",
+  online: "var(--primary)",
 };
 
 function onlyDigits(s) {
@@ -48,8 +48,8 @@ function calcTimeAgo(dateString, t) {
 
 function Logo({ size = 40 }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: size * 0.24, background: "#000", border: "1.5px solid #F2C94C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      <BicitaxiIcon size={size * 0.65} color="#FFFFFF" />
+    <div style={{ width: size, height: size, borderRadius: size * 0.24, background: "var(--surface)", border: "1.5px solid var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <BicitaxiIcon size={size * 0.65} color="var(--primaryGlow)" />
     </div>
   );
 }
@@ -80,14 +80,18 @@ function RouteLine({ progress = 0.2 }) {
 }
 
 function Button({ children, onClick, disabled, variant = "primary", style = {}, className = "btn" }) {
+  const baseClassName = className === "btn" ? "" : className;
+  const combinedClass = variant === "primary" ? `btn btn-primary-gradient ${baseClassName}` : variant === "secondary" ? `btn btn-secondary ${baseClassName}` : variant === "cultural" ? `btn btn-cultural ${baseClassName}` : `btn ${baseClassName}`;
+  
   const styles = {
-    primary: { background: disabled ? C.surfaceAlt : "#fff", color: disabled ? C.textMuted : "#000" },
-    secondary: { background: C.surfaceAlt, color: "#fff", border: `1px solid ${C.border}` },
+    primary: {},
+    secondary: {},
+    cultural: {},
     decline: { background: "transparent", color: C.textMuted, border: `1px solid ${C.border}` },
   };
   return (
     <button
-      className={className}
+      className={combinedClass}
       onClick={onClick}
       disabled={disabled}
       style={{
@@ -112,13 +116,12 @@ function Button({ children, onClick, disabled, variant = "primary", style = {}, 
 
 const inputStyle = {
   width: "100%",
-  padding: "13px 14px",
-  borderRadius: 12,
-  background: C.surface,
-  border: `1px solid ${C.border}`,
-  color: "#fff",
-  fontSize: 14.5,
-  outline: "none",
+  background: "rgba(0, 0, 0, 0.25)",
+  border: `1px solid var(--border)`,
+  padding: "16px 18px",
+  fontSize: 15,
+  color: "var(--textPrimary)",
+  borderRadius: 14,
 };
 
 // ---------------- PASSENGER ----------------
@@ -402,7 +405,7 @@ function PassengerApp() {
               </p>
             )}
 
-            <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>Onde você tá e pra onde vai?</p>
+            <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>{t("whereToDesc", { defaultValue: "Onde você tá e pra onde vai?" })}</p>
             
             <div>
               <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
@@ -495,7 +498,7 @@ function PassengerApp() {
                     checked={hasLuggage}
                     onChange={(e) => setHasLuggage(e.target.checked)}
                     disabled={submitting}
-                    style={{ width: 16, height: 16, accentColor: "#F2C94C" }}
+                    style={{ width: 16, height: 16, accentColor: "var(--secondary)" }}
                   />
                   <span>{t("hasLuggage", { defaultValue: "Bagagem?" })}</span>
                 </label>
@@ -516,7 +519,7 @@ function PassengerApp() {
             </div>
 
             {errorMsg && (
-              <p style={{ color: "#ff6b6b", fontSize: 13, margin: "2px 0 0", fontWeight: 500 }}>
+              <p style={{ color: "var(--error)", fontSize: 13, margin: "2px 0 0", fontWeight: 500 }}>
                 {errorMsg}
               </p>
             )}
@@ -533,10 +536,7 @@ function PassengerApp() {
 
         {stage === "requested" && activeRide && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              borderRadius: 16,
+            <div className="glass-card" style={{
               padding: "24px 20px",
               display: "flex",
               flexDirection: "column",
@@ -569,7 +569,7 @@ function PassengerApp() {
                     width: 44,
                     height: 44,
                     borderRadius: "50%",
-                    background: "rgba(242, 201, 76, 0.15)",
+                    background: "rgba(24, 201, 120, 0.15)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -641,7 +641,7 @@ function PassengerApp() {
             </div>
 
             {cancelErrorMsg && (
-              <p style={{ color: "#ff6b6b", fontSize: 13, margin: 0, fontWeight: 500, textAlign: "center" }}>
+              <p style={{ color: "var(--error)", fontSize: 13, margin: 0, fontWeight: 500, textAlign: "center" }}>
                 {cancelErrorMsg}
               </p>
             )}
@@ -656,8 +656,8 @@ function PassengerApp() {
                   minHeight: 52,
                   borderRadius: 12,
                   background: cancelling ? C.surfaceAlt : "transparent",
-                  color: cancelling ? C.textMuted : "#ff6b6b",
-                  border: `1px solid ${cancelling ? C.border : "#ff6b6b"}`,
+                  color: cancelling ? C.textMuted : "var(--error)",
+                  border: `1px solid ${cancelling ? C.border : "var(--error)"}`,
                   fontWeight: 700,
                   fontSize: 15,
                   position: "static"
@@ -737,7 +737,7 @@ function DriverLogin({ onLogin }) {
           placeholder="Ex: 91 98111-2222"
           inputMode="tel"
         />
-        {error && <p style={{ color: "#ff6b6b", fontSize: 12.5, margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
         <Button onClick={tryLogin} disabled={!phone || loading}>{loading ? "Entrando..." : "Entrar"}</Button>
       </div>
     </div>
@@ -1094,7 +1094,7 @@ function DriverApp({ driver, onLogout }) {
           </div>
         ) : activeDriverRide ? (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ background: C.surface, border: `1px solid ${C.online}`, borderRadius: 16, padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="glass-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "#000", background: C.online, padding: "4px 10px", borderRadius: 999, fontWeight: 800 }}>
                   {activeDriverRide.status === "ACCEPTED" && t("statusDriverFound", { defaultValue: "Bicitáxi encontrado" })}
@@ -1187,7 +1187,7 @@ function DriverApp({ driver, onLogout }) {
                 </div>
 
                 {activeDriverRide.notes && (
-                  <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word" }}>
+                  <div style={{ fontSize: 12, color: "var(--secondary)", background: "rgba(244, 197, 66, 0.1)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word" }}>
                     <strong>Obs:</strong> {activeDriverRide.notes}
                   </div>
                 )}
@@ -1253,7 +1253,7 @@ function DriverApp({ driver, onLogout }) {
           </div>
         ) : status === "error" ? (
           <div className="fade-in" style={{ textAlign: "center", padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <p style={{ color: "#ff6b6b", fontSize: 13.5, margin: 0 }}>
+            <p style={{ color: "var(--error)", fontSize: 13.5, margin: 0 }}>
               {errorMsg || t("errorLoadRequestsFailed", { defaultValue: "Não foi possível carregar as solicitações." })}
             </p>
             <button
@@ -1266,7 +1266,7 @@ function DriverApp({ driver, onLogout }) {
           </div>
         ) : status === "empty" || rides.length === 0 ? (
           <div className="fade-in" style={{ textAlign: "center", padding: "60px 0" }}>
-            {errorMsg && <p style={{ color: "#ff6b6b", fontSize: 13, marginBottom: 12 }}>{errorMsg}</p>}
+            {errorMsg && <p style={{ color: "var(--error)", fontSize: 13, marginBottom: 12 }}>{errorMsg}</p>}
             <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
               {t("noRequestsAvailable", { defaultValue: "Nenhuma solicitação disponível no momento." })}
             </p>
@@ -1274,7 +1274,7 @@ function DriverApp({ driver, onLogout }) {
         ) : (
           <>
             {errorMsg && (
-              <p style={{ color: "#ff6b6b", fontSize: 13, margin: "0 0 6px", fontWeight: 500, textAlign: "center" }}>
+              <p style={{ color: "var(--error)", fontSize: 13, margin: "0 0 6px", fontWeight: 500, textAlign: "center" }}>
                 {errorMsg}
               </p>
             )}
@@ -1285,24 +1285,22 @@ function DriverApp({ driver, onLogout }) {
               const isNew = newRideIds.includes(r.id);
 
               return (
-                <div
-                  key={r.id}
-                  className={`fade-in driver-ride-card ${isNew ? 'ride-highlight' : ''}`}
-                  style={{
-                    background: C.surface,
-                    border: `1px solid ${isNew ? '#F2C94C' : C.border}`,
-                    borderRadius: 14,
-                    padding: 16,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                    height: "auto",
-                    overflow: "visible",
-                    minWidth: 0,
-                    boxShadow: isNew ? '0 0 12px rgba(242, 201, 76, 0.4)' : 'none',
-                    transition: 'all 0.5s ease',
-                  }}
-                >
+                  <div
+                    key={r.id}
+                    className={`fade-in driver-ride-card glass-card ${isNew ? 'ride-highlight' : ''}`}
+                    style={{
+                      border: `1px solid ${isNew ? 'var(--primary)' : 'var(--border)'}`,
+                      padding: 16,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                      height: "auto",
+                      overflow: "visible",
+                      minWidth: 0,
+                      boxShadow: isNew ? '0 0 12px var(--primaryGlow)' : 'none',
+                      transition: 'all 0.5s ease',
+                    }}
+                  >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: 11.5, color: "#fff", background: C.surfaceAlt, padding: "3px 8px", borderRadius: 8, fontFamily: "monospace", fontWeight: 700 }}>
                       #{r.id ? r.id.slice(0, 6).toUpperCase() : ""}
@@ -1332,7 +1330,7 @@ function DriverApp({ driver, onLogout }) {
                   </div>
 
                   {r.notes && (
-                    <div style={{ fontSize: 12, color: "#F2C94C", background: "rgba(242, 201, 76, 0.08)", border: "1px solid rgba(242, 201, 76, 0.2)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                    <div style={{ fontSize: 12, color: "var(--secondary)", background: "rgba(244, 197, 66, 0.1)", border: "1px solid rgba(244, 197, 66, 0.2)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word", overflowWrap: "anywhere" }}>
                       <strong>Obs:</strong> {r.notes}
                     </div>
                   )}
@@ -1396,7 +1394,7 @@ function AdminLogin({ onLoggedIn }) {
         </p>
         <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" type="email" />
         <input style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" type="password" />
-        {error && <p style={{ color: "#ff6b6b", fontSize: 12.5, margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
         <Button onClick={login} disabled={!email || !password || loading}>{loading ? "Entrando..." : "Entrar"}</Button>
       </div>
     </div>
@@ -1450,8 +1448,13 @@ function AdminApp() {
   };
 
   const removeDriver = async (id) => {
-    await supabase.from("drivers").delete().eq("id", id);
-    fetchDrivers();
+    if (!window.confirm("Tem certeza que deseja remover este bicitaxista?")) return;
+    const { error: err } = await supabase.from("drivers").delete().eq("id", id);
+    if (err) {
+      alert("Erro ao remover: " + err.message);
+    } else {
+      fetchDrivers();
+    }
   };
 
   if (session === undefined) {
@@ -1481,7 +1484,7 @@ function AdminApp() {
           <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome completo" />
           <input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefone (só números)" inputMode="tel" />
           <input style={inputStyle} value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="Identificação do quadriciclo (opcional)" />
-          {error && <p style={{ color: "#ff6b6b", fontSize: 12.5, margin: 0 }}>{error}</p>}
+          {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
           <Button onClick={addDriver} disabled={!name || !phone}>Cadastrar</Button>
         </div>
 
@@ -1496,7 +1499,7 @@ function AdminApp() {
                 <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
                 <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} · {d.plate || "sem identificação"}</p>
               </div>
-              <button className="btn" onClick={() => removeDriver(d.id)} style={{ background: "transparent", color: "#ff6b6b", fontSize: 12, padding: "4px 8px" }}>
+              <button className="btn" onClick={() => removeDriver(d.id)} style={{ background: "transparent", color: "var(--error)", fontSize: 12, padding: "4px 8px" }}>
                 remover
               </button>
             </div>

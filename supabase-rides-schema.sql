@@ -97,11 +97,11 @@ BEGIN
         CHECK (passenger_count >= 1 AND passenger_count <= 6);
     END IF;
 
-    -- driver_id obrigatório quando a corrida for aceita ou em andamento/concluída
+    -- driver_id obrigatório quando a corrida for aceita ou em andamento
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rides_driver_required_when_accepted_check') THEN
         ALTER TABLE public.rides ADD CONSTRAINT rides_driver_required_when_accepted_check 
         CHECK (
-            status NOT IN ('ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'IN_PROGRESS', 'COMPLETED') 
+            status NOT IN ('ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'IN_PROGRESS') 
             OR driver_id IS NOT NULL
         );
     END IF;

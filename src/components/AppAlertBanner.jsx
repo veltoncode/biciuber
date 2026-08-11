@@ -38,29 +38,29 @@ export default function AppAlertBanner({ type = "info", message, visible, onClos
   if (!show && !visible) return null;
 
   // Definição de cores e ícones por tipo
-  let bg = "#1C1C1C";
-  let color = "#FFF";
-  let border = "#2A2A2A";
+  let bg = "var(--surfaceElevated)";
+  let color = "var(--textPrimary)";
+  let border = "var(--border)";
   let Icon = null;
 
   switch (type) {
     case "success":
-      border = "#3ECF6E";
-      color = "#3ECF6E";
+      border = "var(--success)";
+      color = "var(--success)";
       Icon = () => (
         <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
       );
       break;
     case "warning":
-      border = "#F2C94C";
-      color = "#F2C94C";
+      border = "var(--secondary)";
+      color = "var(--secondary)";
       Icon = () => (
         <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
       );
       break;
     case "danger":
-      border = "#ff6b6b";
-      color = "#ff6b6b";
+      border = "var(--error)";
+      color = "var(--error)";
       Icon = () => (
         <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
       );
