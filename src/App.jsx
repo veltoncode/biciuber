@@ -16,7 +16,7 @@ import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
 import PushSubscribeCard from "./components/PushSubscribeCard.jsx";
 import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPref } from "./services/appAlerts.js";
-import { unsubscribeFromPush } from "./services/pushNotifications.js";
+import { unsubscribeFromPush, isPushSupported, getNotificationPermission, registerDriverPushSubscription } from "./services/pushNotifications.js";
 
 const C = {
   bg: "var(--background)",
@@ -937,6 +937,17 @@ function DriverApp({ driver, onLogout }) {
 
     return () => unsubscribe();
   }, [driver?.id, t]);
+
+  // Auto-sincronização silenciosa da assinatura Push para motorista logado (Garante token ativo no DB pós-login/iOS)
+  useEffect(() => {
+    if (!driver || !driver.id) return;
+
+    if (isPushSupported() && getNotificationPermission() === "granted") {
+      registerDriverPushSubscription(driver.id, i18n.language).catch((err) => {
+        console.warn("Sincronização silenciosa de Push:", err);
+      });
+    }
+  }, [driver?.id, i18n.language]);
 
   // Auto-expiração visual a cada 30s
   useEffect(() => {

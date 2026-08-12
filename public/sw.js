@@ -86,26 +86,32 @@ self.addEventListener("fetch", (event) => {
 // ==========================================
 
 self.addEventListener("push", (event) => {
-  if (!event.data) return;
+  let title = "BiciTaxi";
+  let options = {
+    body: "Nova atualização recebida.",
+    icon: "/icons/bicitaxi-afua.png",
+    badge: "/icons/bicitaxi-afua.png",
+    vibrate: [200, 100, 200],
+    tag: "bicitaxi-notification",
+    renotify: true,
+    data: { url: "/" }
+  };
 
-  try {
-    const data = event.data.json();
-    const title = data.title || "BiciTaxi";
-    
-    const options = {
-      body: data.body || "",
-      icon: data.icon || "/icons/bicitaxi-afua.png",
-      badge: data.badge || "/icons/bicitaxi-afua.png",
-      vibrate: [200, 100, 200],
-      tag: data.tag || "bicitaxi-notification",
-      renotify: true,
-      data: data.data || { url: "/" }
-    };
-
-    event.waitUntil(self.registration.showNotification(title, options));
-  } catch (e) {
-    console.error("Error parsing push payload", e);
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      if (data.title) title = data.title;
+      if (data.body) options.body = data.body;
+      if (data.icon) options.icon = data.icon;
+      if (data.badge) options.badge = data.badge;
+      if (data.tag) options.tag = data.tag;
+      if (data.data) options.data = data.data;
+    } catch (e) {
+      console.error("Error parsing push payload", e);
+    }
   }
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
