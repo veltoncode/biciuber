@@ -92,10 +92,31 @@ serve(async (req) => {
 
     // Filtrar destinatários adequados
     if (eventType === "NEW_RIDE") {
-      query = query.eq("user_type", "DRIVER");
-      // Não mandamos para motoristas que estejam com alguma corrida ativa neste momento
-      // Por simplicidade, enviamos para todos os "ativos" da tabela (o app trata se já está ocupado ignorando)
-      // Ou poderíamos cruzar com drivers disponíveis.
+      const { data: availableDrivers } = await supabaseClient
+        .from("drivers")
+        .select("id")
+        .eq("is_available", true);
+
+      if (!availableDrivers || availableDrivers.length === 0) {
+        return new Response("No available drivers", { status: 200 });
+      }
+
+      const availableDriverIds = availableDrivers.map((d: any) => d.id);
+
+      const { data: busyRides } = await supabaseClient
+        .from("rides")
+        .select("driver_id")
+        .in("status", ["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"])
+        .not("driver_id", "is", null);
+
+      const busyDriverIds = busyRides ? busyRides.map((r: any) => r.driver_id) : [];
+      const eligibleDriverIds = availableDriverIds.filter((id: string) => !busyDriverIds.includes(id));
+
+      if (eligibleDriverIds.length === 0) {
+        return new Response("All drivers are busy", { status: 200 });
+      }
+
+      query = query.eq("user_type", "DRIVER").not("driver_id", "is", null).in("driver_id", eligibleDriverIds);
     } else if (eventType === "RIDE_CANCELLED") {
       query = query.eq("user_type", "DRIVER").eq("driver_id", record.driver_id);
     } else {
@@ -140,7 +161,7 @@ serve(async (req) => {
           console.log(`Endpoint expirado: ${sub.endpoint}`);
           await supabaseClient
             .from("push_subscriptions")
-            .update({ is_active: false })
+            .delete()
             .eq("id", sub.id);
         } else {
           console.error("Erro ao enviar push:", err);

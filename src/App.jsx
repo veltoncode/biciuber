@@ -16,6 +16,7 @@ import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
 import PushSubscribeCard from "./components/PushSubscribeCard.jsx";
 import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPref } from "./services/appAlerts.js";
+import { unsubscribeFromPush } from "./services/pushNotifications.js";
 
 const C = {
   bg: "var(--background)",
@@ -970,7 +971,12 @@ function DriverApp({ driver, onLogout }) {
   };
 
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await unsubscribeFromPush();
+    } catch (err) {
+      console.error("Erro ao desinscrever do push no logout:", err);
+    }
     localStorage.removeItem("biciuber-driver-active-ride");
     setActiveDriverRide(null);
     onLogout();
