@@ -747,7 +747,7 @@ function DriverLogin({ onLogin }) {
 
 // ---------------- DRIVER APP ----------------
 function DriverApp({ driver, onLogout }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [available, setAvailable] = useState(true);
   const [status, setStatus] = useState("loading"); // "loading" | "success" | "empty" | "error"
   const [rides, setRides] = useState([]);
