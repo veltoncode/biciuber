@@ -87,13 +87,13 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   let title = "BiciTaxi";
+  const iconUrl = new URL("/icons/bicitaxi-afua.png", self.location.origin).href;
+
   let options = {
     body: "Nova atualização recebida.",
-    icon: "/icons/bicitaxi-afua.png",
-    badge: "/icons/bicitaxi-afua.png",
-    vibrate: [200, 100, 200],
+    icon: iconUrl,
+    badge: iconUrl,
     tag: "bicitaxi-notification",
-    renotify: true,
     data: { url: "/" }
   };
 
@@ -102,8 +102,16 @@ self.addEventListener("push", (event) => {
       const data = event.data.json();
       if (data.title) title = data.title;
       if (data.body) options.body = data.body;
-      if (data.icon) options.icon = data.icon;
-      if (data.badge) options.badge = data.badge;
+      if (data.icon) {
+        options.icon = data.icon.startsWith("http") 
+          ? data.icon 
+          : new URL(data.icon, self.location.origin).href;
+      }
+      if (data.badge) {
+        options.badge = data.badge.startsWith("http") 
+          ? data.badge 
+          : new URL(data.badge, self.location.origin).href;
+      }
       if (data.tag) options.tag = data.tag;
       if (data.data) options.data = data.data;
     } catch (e) {

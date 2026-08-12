@@ -58,13 +58,22 @@ export async function requestNotificationPermission() {
 }
 
 // Inscreve o navegador no serviço Web Push gerando a assinatura
-export async function subscribeToPush() {
+export async function subscribeToPush(forceRenew = false) {
   if (!isPushSupported()) {
     throw new Error("Push notifications are not supported in this browser.");
   }
 
   const registration = await navigator.serviceWorker.ready;
-  const existingSubscription = await registration.pushManager.getSubscription();
+  let existingSubscription = await registration.pushManager.getSubscription();
+
+  if (existingSubscription && forceRenew) {
+    try {
+      await existingSubscription.unsubscribe();
+      existingSubscription = null;
+    } catch (e) {
+      console.warn("Erro ao desinscrever para renovação:", e);
+    }
+  }
 
   if (existingSubscription) {
     return existingSubscription;
@@ -113,10 +122,10 @@ function extractKeys(subscription) {
   };
 }
 
-// Registra a assinatura do motorista no banco via RPC segura
-export async function registerDriverPushSubscription(driverId, language = "pt-BR") {
+// Registra a assinatura do motorista no banco via RPC segura com auto-cura
+export async function registerDriverPushSubscription(driverId, language = "pt-BR", forceRenew = false) {
   try {
-    const subscription = await subscribeToPush();
+    const subscription = await subscribeToPush(forceRenew);
     const { p256dh, auth } = extractKeys(subscription);
 
     const { error } = await supabase.rpc("upsert_push_subscription", {
@@ -135,6 +144,10 @@ export async function registerDriverPushSubscription(driverId, language = "pt-BR
     return true;
   } catch (err) {
     console.error("Erro ao registrar push para driver:", err);
+    if (!forceRenew) {
+      console.warn("Tentando auto-cura de Push (renovação forçada de token)...");
+      return registerDriverPushSubscription(driverId, language, true);
+    }
     throw err;
   }
 }
