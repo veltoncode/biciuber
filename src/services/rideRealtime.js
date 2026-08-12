@@ -153,3 +153,34 @@ export function subscribeToDriverRide(driverId, { onActiveRideUpdated, onActiveR
     supabase.removeChannel(channel);
   };
 }
+
+/**
+ * Assina exclusão do próprio driver (invalidação de sessão zumbi).
+ * @param {string} driverId 
+ * @param {Object} handlers 
+ * @returns {Function} Função de cleanup
+ */
+export function subscribeToDriverStatus(driverId, { onDeleted }) {
+  if (!driverId) return () => {};
+
+  const channel = supabase.channel(`driver_status_${driverId}`);
+
+  channel
+    .on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "drivers",
+        filter: `id=eq.${driverId}`,
+      },
+      () => {
+        if (onDeleted) onDeleted();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

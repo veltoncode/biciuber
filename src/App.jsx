@@ -10,7 +10,7 @@ import {
   getDriverById,
   updateRideStatus,
 } from "./services/rides.js";
-import { subscribeToRide, subscribeToPendingRides, subscribeToDriverRide } from "./services/rideRealtime.js";
+import { subscribeToRide, subscribeToPendingRides, subscribeToDriverRide, subscribeToDriverStatus } from "./services/rideRealtime.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
@@ -923,6 +923,21 @@ function DriverApp({ driver, onLogout }) {
     return () => unsubscribe();
   }, [driver?.id, activeDriverRide?.id, t]);
 
+  // Realtime para monitorar exclusão do próprio driver (Sessão Zumbi)
+  useEffect(() => {
+    if (!driver || !driver.id) return;
+
+    const unsubscribe = subscribeToDriverStatus(driver.id, {
+      onDeleted: () => {
+        // Driver excluído pelo admin
+        alert(t("driverDeletedStatus", { defaultValue: "Seu cadastro não está mais ativo." }));
+        handleLogout();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [driver?.id, t]);
+
   // Auto-expiração visual a cada 30s
   useEffect(() => {
     if (activeDriverRide || checkingActiveRide) return;
@@ -978,6 +993,7 @@ function DriverApp({ driver, onLogout }) {
       console.error("Erro ao desinscrever do push no logout:", err);
     }
     localStorage.removeItem("biciuber-driver-active-ride");
+    localStorage.removeItem("biciuber-driver-session");
     setActiveDriverRide(null);
     onLogout();
   };
@@ -1521,6 +1537,19 @@ export default function App() {
   const [view, setView] = useState("welcome"); // welcome | passenger | driverLogin | driverApp | admin
   const [loggedDriver, setLoggedDriver] = useState(null);
 
+  // Sincronização entre abas
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (event.key === "biciuber-driver-session" && !event.newValue) {
+        // Logout ocorreu em outra aba
+        setLoggedDriver(null);
+        setView("welcome");
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const tabs = [
     { k: "passenger", label: "Passageiro" },
     { k: "driverLogin", label: "Bicitaxista" },
@@ -1590,7 +1619,11 @@ export default function App() {
           <div style={{ flex: 1, overflow: "hidden" }}>
             {view === "passenger" && <PassengerApp />}
             {view === "driverLogin" && (
-              <DriverLogin onLogin={(d) => { setLoggedDriver(d); setView("driverApp"); }} />
+              <DriverLogin onLogin={(d) => { 
+                localStorage.setItem("biciuber-driver-session", d.id); 
+                setLoggedDriver(d); 
+                setView("driverApp"); 
+              }} />
             )}
             {view === "driverApp" && loggedDriver && (
               <DriverApp driver={loggedDriver} onLogout={() => { localStorage.removeItem("biciuber-driver-active-ride"); setLoggedDriver(null); setView("driverLogin"); }} />
