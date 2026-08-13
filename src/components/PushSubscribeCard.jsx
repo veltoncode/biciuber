@@ -6,6 +6,7 @@ import {
   requestNotificationPermission, 
   registerDriverPushSubscription, 
   registerPassengerPushSubscription,
+  getCurrentPushSubscription,
   isIOS,
   isStandalone
 } from "../services/pushNotifications";
@@ -22,29 +23,48 @@ const C = {
 
 export default function PushSubscribeCard({ userType, driverId, rideId, publicTrackingToken }) {
   const { t, i18n } = useTranslation();
-  const [permission, setPermission] = useState(getNotificationPermission());
+  
+  // "checking" | "unsupported" | "permission-default" | "permission-denied" | "subscription-missing" | "subscription-active" | "error"
+  const [status, setStatus] = useState("checking");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    setPermission(getNotificationPermission());
+    checkStatus();
   }, []);
 
-  if (!isPushSupported()) {
-    return null;
-  }
+  const checkStatus = async () => {
+    try {
+      if (!isPushSupported()) {
+        setStatus("unsupported");
+        return;
+      }
 
-  // Se já está autorizado, não precisamos mostrar o card novamente, 
-  // pois a inscrição já foi feita no momento do clique, 
-  // mas se quisermos podemos tentar re-registrar silenciosamente se faltar sincronia.
-  // Por ora, ocultamos.
-  if (permission === "granted") {
-    return null;
-  }
+      const permission = getNotificationPermission();
 
-  if (permission === "denied") {
-    return null; // Não importunar o usuário se ele negou.
-  }
+      if (permission === "denied") {
+        setStatus("permission-denied");
+        return;
+      }
+
+      if (permission === "default") {
+        setStatus("permission-default");
+        return;
+      }
+
+      if (permission === "granted") {
+        const sub = await getCurrentPushSubscription();
+        if (sub) {
+          setStatus("subscription-active");
+        } else {
+          setStatus("subscription-missing");
+        }
+      }
+    } catch (err) {
+      console.error("Push check error:", err);
+      setStatus("error");
+    }
+  };
 
   const handleSubscribe = async () => {
     if (isIOS() && !isStandalone()) {
@@ -56,23 +76,38 @@ export default function PushSubscribeCard({ userType, driverId, rideId, publicTr
     setErrorMsg("");
     
     try {
-      const perm = await requestNotificationPermission();
-      setPermission(perm);
-      
-      if (perm === "granted") {
-        if (userType === "DRIVER") {
-          await registerDriverPushSubscription(driverId, i18n.language);
-        } else if (userType === "PASSENGER") {
-          await registerPassengerPushSubscription(rideId, publicTrackingToken, i18n.language);
+      // Pede permissão (se não foi concedida)
+      let perm = getNotificationPermission();
+      if (perm !== "granted") {
+        perm = await requestNotificationPermission();
+        if (perm === "denied") {
+          setStatus("permission-denied");
+          setLoading(false);
+          return;
         }
       }
+      
+      // Registra a inscrição no backend
+      if (userType === "DRIVER") {
+        await registerDriverPushSubscription(driverId, i18n.language);
+      } else if (userType === "PASSENGER") {
+        await registerPassengerPushSubscription(rideId, publicTrackingToken, i18n.language);
+      }
+
+      setStatus("subscription-active");
+
     } catch (err) {
       console.error(err);
       setErrorMsg(t("errorPushSubscribe", { defaultValue: "Erro ao ativar notificações." }));
+      setStatus("error");
     } finally {
       setLoading(false);
     }
   };
+
+  if (status === "checking" || status === "unsupported" || status === "subscription-active") {
+    return null;
+  }
 
   const title = userType === "DRIVER" 
     ? t("driverPushTitle", { defaultValue: "Receber novas corridas" }) 
@@ -81,6 +116,11 @@ export default function PushSubscribeCard({ userType, driverId, rideId, publicTr
   const desc = userType === "DRIVER"
     ? t("driverPushDesc", { defaultValue: "Ative as notificações para ser avisado mesmo quando o BiciTaxi estiver fechado." })
     : t("passengerPushDesc", { defaultValue: "Ative as notificações para ser avisado sobre o bicitaxista mesmo com o app fechado." });
+
+  let buttonLabel = t("enableNotifications", { defaultValue: "Ativar notificações" });
+  if (status === "subscription-missing") {
+    buttonLabel = t("reactivateNotifications", { defaultValue: "Reativar notificações" });
+  }
 
   return (
     <div className="fade-in" style={{ background: C.surface, border: `1px solid ${C.online}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
@@ -92,18 +132,27 @@ export default function PushSubscribeCard({ userType, driverId, rideId, publicTr
         </div>
         <div style={{ flex: 1 }}>
           <h4 style={{ margin: "0 0 4px", fontSize: 14, color: "#fff" }}>{title}</h4>
-          <p style={{ margin: "0 0 12px", fontSize: 12, color: C.textMuted }}>{desc}</p>
+          
+          {status === "permission-denied" ? (
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--error)" }}>
+              {t("pushDeniedMsg", { defaultValue: "As notificações estão bloqueadas. Por favor, libere nas configurações do seu navegador para usar o app." })}
+            </p>
+          ) : (
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: C.textMuted }}>{desc}</p>
+          )}
           
           {errorMsg && <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--error)" }}>{errorMsg}</p>}
           
-          <button 
-            className="btn" 
-            onClick={handleSubscribe} 
-            disabled={loading}
-            style={{ padding: "8px 16px", borderRadius: 8, background: C.online, color: "#000", fontWeight: 700, fontSize: 13, border: "none" }}
-          >
-            {loading ? t("loading", { defaultValue: "Aguarde..." }) : t("enableNotifications", { defaultValue: "Ativar notificações" })}
-          </button>
+          {status !== "permission-denied" && (
+            <button 
+              className="btn" 
+              onClick={handleSubscribe} 
+              disabled={loading}
+              style={{ padding: "8px 16px", borderRadius: 8, background: C.online, color: "#000", fontWeight: 700, fontSize: 13, border: "none" }}
+            >
+              {loading ? t("loading", { defaultValue: "Aguarde..." }) : buttonLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

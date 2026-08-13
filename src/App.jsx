@@ -16,7 +16,7 @@ import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
 import PushSubscribeCard from "./components/PushSubscribeCard.jsx";
 import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPref } from "./services/appAlerts.js";
-import { unsubscribeFromPush, isPushSupported, getNotificationPermission, registerDriverPushSubscription } from "./services/pushNotifications.js";
+import { unsubscribeFromPush, isPushSupported, getNotificationPermission, registerDriverPushSubscription, getCurrentPushSubscription } from "./services/pushNotifications.js";
 
 const C = {
   bg: "var(--background)",
@@ -900,6 +900,17 @@ function DriverApp({ driver, onLogout }) {
     return () => unsubscribe();
   }, [activeDriverRide, checkingActiveRide, t]);
 
+  // Atualização automática ao voltar do background (ex: clicar na notificação de Push)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !activeDriverRide && !checkingActiveRide) {
+        loadPendingRides(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [activeDriverRide, checkingActiveRide]);
+
   // Realtime para Corrida Ativa do Motorista
   useEffect(() => {
     if (!driver || !driver.id) return;
@@ -943,8 +954,13 @@ function DriverApp({ driver, onLogout }) {
     if (!driver || !driver.id) return;
 
     if (isPushSupported() && getNotificationPermission() === "granted") {
-      registerDriverPushSubscription(driver.id, i18n.language).catch((err) => {
-        console.warn("Sincronização silenciosa de Push:", err);
+      getCurrentPushSubscription().then((sub) => {
+        if (sub) {
+          // Se já tem subscription local, basta reenviar a mesma (reassociar no DB), sem forçar renew.
+          registerDriverPushSubscription(driver.id, i18n.language, false).catch((err) => {
+            console.warn("Sincronização silenciosa de Push:", err);
+          });
+        }
       });
     }
   }, [driver?.id, i18n.language]);

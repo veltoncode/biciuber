@@ -94,6 +94,14 @@ export async function subscribeToPush(forceRenew = false) {
   return subscription;
 }
 
+// Consulta a assinatura atual do navegador sem criar ou renovar.
+export async function getCurrentPushSubscription() {
+  if (!isPushSupported()) return null;
+
+  const registration = await navigator.serviceWorker.ready;
+  return await registration.pushManager.getSubscription();
+}
+
 // Desinscreve o navegador
 export async function unsubscribeFromPush() {
   if (!isPushSupported()) return;
@@ -144,10 +152,15 @@ export async function registerDriverPushSubscription(driverId, language = "pt-BR
     return true;
   } catch (err) {
     console.error("Erro ao registrar push para driver:", err);
-    if (!forceRenew) {
-      console.warn("Tentando auto-cura de Push (renovação forçada de token)...");
+    
+    // Evita loop de auto-cura em caso de falha de rede ou timeout do Supabase RPC
+    const isNetworkOrDbError = err?.message?.includes("fetch") || err?.code === "PGRST" || err?.message?.includes("network");
+    
+    if (!forceRenew && !isNetworkOrDbError) {
+      console.warn("Possível falha de criptografia/token local. Tentando auto-cura de Push (renovação forçada)...");
       return registerDriverPushSubscription(driverId, language, true);
     }
+    
     throw err;
   }
 }
