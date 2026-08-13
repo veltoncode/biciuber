@@ -30,7 +30,7 @@ export async function broadcastDriverLocation(channel, location) {
   if (location.latitude < -90 || location.latitude > 90) return;
   if (location.longitude < -180 || location.longitude > 180) return;
 
-  await channel.send({
+  const result = await channel.send({
     type: "broadcast",
     event: "driver-location",
     payload: {
@@ -40,6 +40,7 @@ export async function broadcastDriverLocation(channel, location) {
       timestamp: location.timestamp || Date.now()
     }
   });
+  return result;
 }
 
 /**
@@ -49,6 +50,9 @@ export async function broadcastDriverLocation(channel, location) {
 export function subscribeToDriverLocation(rideId, onLocation, onError) {
   if (!rideId) return () => {};
 
+  console.log("[GPS PASSENGER] rideId:", rideId);
+  console.log("[GPS PASSENGER] channel:", `ride-location:${rideId}`);
+
   const channel = createRideLocationChannel(rideId);
 
   channel
@@ -56,6 +60,7 @@ export function subscribeToDriverLocation(rideId, onLocation, onError) {
       "broadcast",
       { event: "driver-location" },
       (payload) => {
+        console.log("[GPS PASSENGER] localização recebida:", payload);
         const loc = payload.payload;
         if (loc && loc.latitude >= -90 && loc.latitude <= 90 && loc.longitude >= -180 && loc.longitude <= 180) {
           onLocation(loc);
@@ -63,12 +68,14 @@ export function subscribeToDriverLocation(rideId, onLocation, onError) {
       }
     )
     .subscribe((status, err) => {
+      console.log("[GPS PASSENGER] subscription:", status, err);
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         if (onError) onError(err || new Error(status));
       }
     });
 
   return () => {
+      console.log("[GPS] cleanup channel passenger", `ride-location:${rideId}`);
     supabase.removeChannel(channel);
   };
 }

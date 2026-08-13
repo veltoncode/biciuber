@@ -328,6 +328,7 @@ function PassengerApp({ onBack }) {
       activeRide.id,
       (location) => {
         setDriverLocation(location);
+        console.log("[GPS PASSENGER] driverLocation state updated");
       },
       (err) => {
         console.warn("Realtime Location Error:", err);
@@ -336,9 +337,10 @@ function PassengerApp({ onBack }) {
 
     return () => {
       unsubscribe();
-      setDriverLocation(null);
+      // Removendo clear da location aqui para não piscar a tela caso a dependência mude temporariamente.
+      // E removendo status das dependências.
     };
-  }, [activeRide?.id, activeRide?.driver_id, activeRide?.status, cancelling]);
+  }, [activeRide?.id, activeRide?.driver_id, cancelling]);
 
   const handleFormSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -1195,43 +1197,52 @@ function DriverApp({ driver, onLogout }) {
     if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
     if (gpsChannel.current) removeRideLocationChannel(gpsChannel.current);
 
+    console.log("[GPS DRIVER] rideId:", activeDriverRide.id);
+    console.log("[GPS DRIVER] channel:", `ride-location:${activeDriverRide.id}`);
+
     const channel = createRideLocationChannel(activeDriverRide.id);
     gpsChannel.current = channel;
 
-    channel.subscribe(async (status) => {
-      if (status !== 'SUBSCRIBED') {
-        console.warn("Realtime Channel status for GPS:", status);
+    channel.subscribe(async (status, error) => {
+      console.log("[GPS DRIVER] subscription:", status, error);
+      if (status === 'SUBSCRIBED') {
+        console.log("[GPS DRIVER] watchPosition iniciou");
+        watchId.current = navigator.geolocation.watchPosition(
+          async (position) => {
+            setGpsStatus("sharing");
+            const now = Date.now();
+            // Throttle: 1 envio a cada 2s
+            if (now - lastGpsEmit.current >= 2000) {
+              lastGpsEmit.current = now;
+              console.log("[GPS DRIVER] posição obtida:", {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy
+              });
+              const result = await broadcastDriverLocation(gpsChannel.current, {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                timestamp: position.timestamp
+              });
+              console.log("[GPS DRIVER] broadcast result:", result);
+            }
+          },
+          (error) => {
+            console.error("[GPS DRIVER] geolocation error:", error);
+            stopSharingLocation();
+            if (error.code === error.PERMISSION_DENIED) {
+              alert(t("locationErrorDenied", { defaultValue: "Permissão de localização negada." }));
+            } else if (error.code === error.TIMEOUT) {
+              alert(t("gpsTimeout", { defaultValue: "O GPS demorou muito para responder." }));
+            } else {
+              alert(t("cannotDetermineLocation", { defaultValue: "Não foi possível determinar sua localização." }));
+            }
+          },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
       }
     });
-
-    watchId.current = navigator.geolocation.watchPosition(
-      (position) => {
-        setGpsStatus("sharing");
-        const now = Date.now();
-        // Throttle: 1 envio a cada 2s
-        if (now - lastGpsEmit.current >= 2000) {
-          lastGpsEmit.current = now;
-          broadcastDriverLocation(gpsChannel.current, {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: position.timestamp
-          });
-        }
-      },
-      (error) => {
-        console.error("GPS Error:", error);
-        stopSharingLocation();
-        if (error.code === error.PERMISSION_DENIED) {
-          alert(t("locationErrorDenied", { defaultValue: "Permissão de localização negada." }));
-        } else if (error.code === error.TIMEOUT) {
-          alert(t("gpsTimeout", { defaultValue: "O GPS demorou muito para responder." }));
-        } else {
-          alert(t("cannotDetermineLocation", { defaultValue: "Não foi possível determinar sua localização." }));
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-    );
   };
 
   // Cleanup GPS quando a corrida terminar, for cancelada ou componente desmontar
