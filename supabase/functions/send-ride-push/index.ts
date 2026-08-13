@@ -137,7 +137,7 @@ serve(async (req) => {
       const payload = JSON.stringify({
         title,
         body,
-        icon: "/icons/bicitaxi-afua.png",
+        icon: "/icons/bicitaxi-afua-transparent.png",
         tag: `ride-${record.id}-${eventType}`, // evita repetições do mesmo status na tela
         data: {
           url: "/",
