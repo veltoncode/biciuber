@@ -1198,6 +1198,12 @@ function DriverApp({ driver, onLogout }) {
     const channel = createRideLocationChannel(activeDriverRide.id);
     gpsChannel.current = channel;
 
+    channel.subscribe(async (status) => {
+      if (status !== 'SUBSCRIBED') {
+        console.warn("Realtime Channel status for GPS:", status);
+      }
+    });
+
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
         setGpsStatus("sharing");

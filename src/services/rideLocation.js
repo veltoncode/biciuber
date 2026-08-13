@@ -49,7 +49,7 @@ export async function broadcastDriverLocation(channel, location) {
 export function subscribeToDriverLocation(rideId, onLocation, onError) {
   if (!rideId) return () => {};
 
-  const channel = supabase.channel(`ride-location:${rideId}`);
+  const channel = createRideLocationChannel(rideId);
 
   channel
     .on(
@@ -57,7 +57,7 @@ export function subscribeToDriverLocation(rideId, onLocation, onError) {
       { event: "driver-location" },
       (payload) => {
         const loc = payload.payload;
-        if (loc.latitude >= -90 && loc.latitude <= 90 && loc.longitude >= -180 && loc.longitude <= 180) {
+        if (loc && loc.latitude >= -90 && loc.latitude <= 90 && loc.longitude >= -180 && loc.longitude <= 180) {
           onLocation(loc);
         }
       }
