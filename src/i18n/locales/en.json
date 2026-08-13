@@ -93,5 +93,11 @@
   "alertDriverArriving": "The bicitaxi driver is on the way.",
   "alertDriverArrived": "The bicitaxi driver has arrived.",
   "alertRideStarted": "Ride started.",
-  "alertRideCompleted": "Ride completed."
+  "alertRideCompleted": "Ride completed.",
+  "rideAcceptedSuccess": "Your request has been accepted.",
+  "whatsappDriver": "Chat on WhatsApp",
+  "callDriver": "Call the driver",
+  "realtimeUnavailable": "Real-time updates are unavailable. Use Refresh to try again.",
+  "back": "Back",
+  "signOut": "Sign out"
 }

@@ -9,8 +9,11 @@ import {
   getActiveRideForDriver,
   getDriverById,
   updateRideStatus,
+  subscribeToRide,
+  subscribeToPendingRides,
+  subscribeToDriverRide,
+  subscribeToDriverStatus
 } from "./services/rides.js";
-import { subscribeToRide, subscribeToPendingRides, subscribeToDriverRide, subscribeToDriverStatus } from "./services/rideRealtime.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
@@ -55,14 +58,21 @@ function Logo({ size = 40 }) {
   );
 }
 
-function TopBar({ subtitle }) {
+function TopBar({ subtitle, onBack, backLabel }) {
   return (
-    <div style={{ padding: "22px 20px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}` }}>
-      <Logo size={36} />
-      <div>
-        <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{subtitle}</p>
-        <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: -0.3 }}>BiciTaxi</h1>
+    <div style={{ padding: "22px 20px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Logo size={36} />
+        <div>
+          <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{subtitle}</p>
+          <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: -0.3 }}>BiciTaxi</h1>
+        </div>
       </div>
+      {onBack && (
+        <button className="btn" onClick={onBack} style={{ background: "transparent", color: C.textMuted, fontSize: 13, textDecoration: "underline", padding: "8px 0" }}>
+          {backLabel || "Voltar"}
+        </button>
+      )}
     </div>
   );
 }
@@ -126,7 +136,7 @@ const inputStyle = {
 };
 
 // ---------------- PASSENGER ----------------
-function PassengerApp() {
+function PassengerApp({ onBack }) {
   const { t } = useTranslation();
   const [stage, setStage] = useState("form"); // "form" | "requested"
   const [submitting, setSubmitting] = useState(false);
@@ -197,17 +207,9 @@ function PassengerApp() {
       loadDriver(activeRide.driver_id);
     }
 
-    const unsubscribe = subscribeToRide(activeRide.id, {
-      onStatusChange: (status) => {
-        if (status === "SUBSCRIBED") {
-          setLiveStatus(t("liveConnectionActive", { defaultValue: "Conectado em tempo real" }));
-        } else if (status === "TIMED_OUT" || status === "CLOSED") {
-          setLiveStatus(t("reconnecting", { defaultValue: "Reconectando..." }));
-        } else if (status === "CHANNEL_ERROR") {
-          setLiveStatus(t("liveConnectionFailed", { defaultValue: "Falha na conexão" }));
-        }
-      },
-      onUpdate: (newRide) => {
+    const unsubscribe = subscribeToRide(
+      activeRide.id,
+      (newRide) => {
         // Atualiza a UI se o status for um dos ativos
         // Comparar status antigo
         if (prevStatus.current && prevStatus.current !== newRide.status) {
@@ -267,10 +269,14 @@ function PassengerApp() {
           setCancelErrorMsg(t("rideExpired", { defaultValue: "Nenhum bicitaxista aceitou a solicitação a tempo." }));
         }
       },
-      onError: (err) => {
-        console.error("Erro Realtime:", err);
+      (err) => {
+        if (err) {
+          setLiveStatus(t("realtimeUnavailable", { defaultValue: "Atualização em tempo real indisponível. Use Atualizar para tentar novamente." }));
+        } else {
+          setLiveStatus("");
+        }
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [activeRide?.id, activeRide?.driver_id, cancelling, t]);
@@ -391,7 +397,7 @@ function PassengerApp() {
         visible={banner.visible} 
         onClose={() => setBanner({ ...banner, visible: false })} 
       />
-      <TopBar subtitle="Passageiro" />
+      <TopBar subtitle="Passageiro" onBack={!activeRide ? onBack : undefined} backLabel={t("back", { defaultValue: "Voltar" })} />
       {liveStatus && (
         <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
           {liveStatus}
@@ -697,7 +703,8 @@ function PassengerApp() {
 }
 
 // ---------------- DRIVER LOGIN ----------------
-function DriverLogin({ onLogin }) {
+function DriverLogin({ onLogin, onBack }) {
+  const { t } = useTranslation();
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -726,7 +733,7 @@ function DriverLogin({ onLogin }) {
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
-      <TopBar subtitle="Bicitaxista" />
+      <TopBar subtitle="Bicitaxista" onBack={onBack} backLabel={t("back", { defaultValue: "Voltar" })} />
       <div style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
         <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
           Entre com o telefone que foi cadastrado pelo administrador.
@@ -856,46 +863,64 @@ function DriverApp({ driver, onLogout }) {
   useEffect(() => {
     if (activeDriverRide || checkingActiveRide) return;
 
-    const unsubscribe = subscribeToPendingRides({
-      onStatusChange: (s) => {
-        if (s === "SUBSCRIBED") setLiveStatus(t("liveConnectionActive", { defaultValue: "Conectado em tempo real" }));
-        else if (s === "TIMED_OUT" || s === "CLOSED") setLiveStatus(t("reconnecting", { defaultValue: "Reconectando..." }));
-        else if (s === "CHANNEL_ERROR") setLiveStatus(t("liveConnectionFailed", { defaultValue: "Falha na conexão" }));
-      },
-      onPendingCreated: (ride) => {
+    const unsubscribe = subscribeToPendingRides(
+      (ride) => {
         setRides(prev => {
           if (prev.find(r => r.id === ride.id)) return prev;
 
-          // Se for genuinamente nova
-          if (!pendingRideIds.current.includes(ride.id)) {
-            pendingRideIds.current.push(ride.id);
-            playAlertSound("NEW_RIDE");
-            vibrateAlert("NEW_RIDE");
-            showBanner("info", t("alertNewRide", { defaultValue: "Nova solicitação de bicitáxi." }));
-            
-            // Adicionar destaque
-            setNewRideIds(ids => [...ids, ride.id]);
-            setTimeout(() => {
-              setNewRideIds(ids => ids.filter(id => id !== ride.id));
-            }, 6000);
-          }
+          // Só considera corrida válida se for REQUESTED, sem motorista e não expirada
+          if (ride.status === "REQUESTED" && !ride.driver_id && new Date(ride.expires_at) > new Date()) {
+            if (!pendingRideIds.current.includes(ride.id)) {
+              pendingRideIds.current.push(ride.id);
+              playAlertSound("NEW_RIDE");
+              vibrateAlert("NEW_RIDE");
+              showBanner("info", t("alertNewRide", { defaultValue: "Nova solicitação de bicitáxi." }));
+              
+              setNewRideIds(ids => [...ids, ride.id]);
+              setTimeout(() => {
+                setNewRideIds(ids => ids.filter(id => id !== ride.id));
+              }, 6000);
+            }
 
-          const newList = [ride, ...prev].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-          setStatus(newList.length > 0 ? "success" : "empty");
-          return newList;
+            const newList = [ride, ...prev].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+            setStatus(newList.length > 0 ? "success" : "empty");
+            return newList;
+          }
+          return prev;
         });
       },
-      onPendingUpdated: (ride) => {
-        setRides(prev => prev.map(r => r.id === ride.id ? ride : r));
+      (ride) => {
+        setRides(prev => {
+          const isStillValid = (
+            ride.status === "REQUESTED" && 
+            !ride.driver_id && 
+            new Date(ride.expires_at) > new Date()
+          );
+
+          if (isStillValid) {
+            return prev.map(r => r.id === ride.id ? ride : r);
+          } else {
+            const newList = prev.filter(r => r.id !== ride.id);
+            setStatus(newList.length > 0 ? "success" : "empty");
+            return newList;
+          }
+        });
       },
-      onPendingRemoved: (ride) => {
+      (ride) => {
         setRides(prev => {
           const newList = prev.filter(r => r.id !== ride.id);
           setStatus(newList.length > 0 ? "success" : "empty");
           return newList;
         });
+      },
+      (err) => {
+        if (err) {
+          setLiveStatus(t("realtimeUnavailable", { defaultValue: "Atualização em tempo real indisponível. Use Atualizar para tentar novamente." }));
+        } else {
+          setLiveStatus("");
+        }
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [activeDriverRide, checkingActiveRide, t]);
@@ -915,22 +940,30 @@ function DriverApp({ driver, onLogout }) {
   useEffect(() => {
     if (!driver || !driver.id) return;
 
-    const unsubscribe = subscribeToDriverRide(driver.id, {
-      onActiveRideUpdated: (ride) => {
-        setActiveDriverRide(ride);
-      },
-      onActiveRideEnded: (ride) => {
-        if (activeDriverRide && activeDriverRide.id === ride.id) {
-          setActiveDriverRide(null);
-          
-          if (ride.status === "CANCELLED") {
-             alert(t("driverCancelled", { defaultValue: "O passageiro cancelou a corrida." }));
+    const unsubscribe = subscribeToDriverRide(
+      driver.id,
+      (ride) => {
+        const isActiveStatus = ["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"].includes(ride.status);
+        if (isActiveStatus) {
+          setActiveDriverRide(ride);
+        } else {
+          if (activeDriverRide && activeDriverRide.id === ride.id) {
+            setActiveDriverRide(null);
+            if (ride.status === "CANCELLED") {
+               alert(t("driverCancelled", { defaultValue: "O passageiro cancelou a corrida." }));
+            }
+            loadPendingRides();
           }
-          
-          loadPendingRides();
+        }
+      },
+      (err) => {
+        if (err) {
+          setLiveStatus(t("realtimeUnavailable", { defaultValue: "Atualização em tempo real indisponível. Use Atualizar para tentar novamente." }));
+        } else {
+          setLiveStatus("");
         }
       }
-    });
+    );
     return () => unsubscribe();
   }, [driver?.id, activeDriverRide?.id, t]);
 
@@ -1102,7 +1135,7 @@ function DriverApp({ driver, onLogout }) {
 
       <div style={{ padding: "10px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <button className="btn" onClick={handleLogout} style={{ background: "transparent", color: C.textMuted, fontSize: 12, textDecoration: "underline", padding: 0 }}>
-          sair
+          {t("signOut", { defaultValue: "Sair" })}
         </button>
 
         {!checkingActiveRide && !activeDriverRide && (
@@ -1522,8 +1555,8 @@ function AdminApp() {
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
       <TopBar subtitle="Administrador" />
       <div style={{ padding: "10px 20px 0" }}>
-        <button className="btn" onClick={() => supabase.auth.signOut()} style={{ background: "transparent", color: C.textMuted, fontSize: 12, textDecoration: "underline", padding: 0 }}>
-          sair
+        <button className="btn" onClick={() => supabase.auth.signOut()} style={{ background: "transparent", color: "var(--error)", fontSize: 13, textDecoration: "underline", padding: 0 }}>
+          Sair
         </button>
       </div>
 
@@ -1561,7 +1594,7 @@ function AdminApp() {
 
 // ---------------- ROOT ----------------
 export default function App() {
-  const [view, setView] = useState("welcome"); // welcome | passenger | driverLogin | driverApp | admin
+  const [view, setView] = useState("welcome"); // welcome | passenger | driverLogin | driverApp
   const [loggedDriver, setLoggedDriver] = useState(null);
 
   // Sincronização entre abas
@@ -1577,88 +1610,51 @@ export default function App() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  const tabs = [
-    { k: "passenger", label: "Passageiro" },
-    { k: "driverLogin", label: "Bicitaxista" },
-    { k: "admin", label: "Admin" },
-  ];
-
-  const goTab = (k) => {
-    if (k === "driverLogin" && loggedDriver) {
-      setView("driverApp");
-    } else {
-      setView(k);
-    }
-  };
+  if (window.location.pathname === "/admin") {
+    return (
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        <AdminApp />
+      </div>
+    );
+  }
 
   return (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      {view === "welcome" ? (
-        <WelcomeScreen
-          onSelectPassenger={() => setView("passenger")}
-          onSelectDriver={() => setView("driverLogin")}
-        />
-      ) : (
-        <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", gap: 6, padding: 10, background: "#000", borderBottom: `1px solid ${C.border}` }}>
-            <button
-              className="btn"
-              onClick={() => setView("welcome")}
-              title="Início"
-              aria-label="Voltar para a tela inicial"
-              style={{
-                padding: "8px 12px",
-                borderRadius: 10,
-                background: "rgba(255, 255, 255, 0.08)",
-                color: "#FFFFFF",
-                fontWeight: 700,
-                fontSize: 12.5,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </button>
-            {tabs.map((t) => (
-              <button
-                key={t.k}
-                className="btn"
-                onClick={() => goTab(t.k)}
-                style={{
-                  flex: 1,
-                  padding: "8px 0",
-                  borderRadius: 10,
-                  background: (view === t.k || (t.k === "driverLogin" && view === "driverApp")) ? "#fff" : "transparent",
-                  color: (view === t.k || (t.k === "driverLogin" && view === "driverApp")) ? "#000" : "#9A9A9A",
-                  fontWeight: 700,
-                  fontSize: 12.5,
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            {view === "passenger" && <PassengerApp />}
-            {view === "driverLogin" && (
-              <DriverLogin onLogin={(d) => { 
-                localStorage.setItem("biciuber-driver-session", d.id); 
-                setLoggedDriver(d); 
-                setView("driverApp"); 
-              }} />
-            )}
-            {view === "driverApp" && loggedDriver && (
-              <DriverApp driver={loggedDriver} onLogout={() => { localStorage.removeItem("biciuber-driver-active-ride"); setLoggedDriver(null); setView("driverLogin"); }} />
-            )}
-            {view === "admin" && <AdminApp />}
-          </div>
-        </div>
-      )}
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        {view === "welcome" && (
+          <WelcomeScreen
+            onSelectPassenger={() => setView("passenger")}
+            onSelectDriver={() => {
+              if (loggedDriver) setView("driverApp");
+              else setView("driverLogin");
+            }}
+          />
+        )}
+        {view === "passenger" && (
+          <PassengerApp onBack={() => setView("welcome")} />
+        )}
+        {view === "driverLogin" && (
+          <DriverLogin 
+            onBack={() => setView("welcome")}
+            onLogin={(d) => { 
+              localStorage.setItem("biciuber-driver-session", d.id); 
+              setLoggedDriver(d); 
+              setView("driverApp"); 
+            }} 
+          />
+        )}
+        {view === "driverApp" && loggedDriver && (
+          <DriverApp 
+            driver={loggedDriver} 
+            onLogout={() => { 
+              localStorage.removeItem("biciuber-driver-active-ride"); 
+              setLoggedDriver(null); 
+              setView("welcome"); 
+            }} 
+          />
+        )}
+      </div>
     </>
   );
 }

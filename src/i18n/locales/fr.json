@@ -92,5 +92,11 @@
   "alertDriverArriving": "Le conducteur de bicitaxi est en route.",
   "alertDriverArrived": "Le conducteur de bicitaxi est arrivé.",
   "alertRideStarted": "Course démarrée.",
-  "alertRideCompleted": "Course terminée."
+  "alertRideCompleted": "Course terminée.",
+  "rideAcceptedSuccess": "Votre demande a été acceptée.",
+  "whatsappDriver": "Contacter sur WhatsApp",
+  "callDriver": "Appeler le conducteur",
+  "realtimeUnavailable": "Les mises à jour en temps réel sont indisponibles. Utilisez Actualiser pour réessayer.",
+  "back": "Retour",
+  "signOut": "Se déconnecter"
 }

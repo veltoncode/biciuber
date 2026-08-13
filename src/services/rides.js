@@ -227,3 +227,178 @@ export async function updateRideStatus(rideId, driverId, newStatus) {
 
   return updated;
 }
+
+/**
+ * Assina mudanças em tempo real para uma corrida específica (Passageiro).
+ * @param {string} rideId 
+ * @param {Function} onChange 
+ * @param {Function} onError 
+ * @returns {Function} Função de cleanup
+ */
+export function subscribeToRide(rideId, onChange, onError) {
+  if (!rideId) return () => {};
+
+  const channel = supabase.channel(`ride_${rideId}`);
+
+  channel
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "rides",
+        filter: `id=eq.${rideId}`,
+      },
+      (payload) => {
+        if (payload.errors) {
+          if (onError) onError(payload.errors);
+          return;
+        }
+        if (onChange) onChange(payload.new);
+      }
+    )
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED' && onError) {
+        onError(null);
+      }
+      if (err && onError) {
+        console.error("Erro na assinatura realtime da corrida:", err);
+        onError(err);
+      }
+    });
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Assina mudanças em corridas pendentes para a lista do motorista.
+ * @param {Function} onInsert
+ * @param {Function} onUpdate
+ * @param {Function} onDelete
+ * @param {Function} onError 
+ * @returns {Function} Função de cleanup
+ */
+export function subscribeToPendingRides(onInsert, onUpdate, onDelete, onError) {
+  const channel = supabase.channel('pending_rides_list');
+
+  channel
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "rides",
+      },
+      (payload) => {
+        if (onInsert) onInsert(payload.new);
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "rides",
+      },
+      (payload) => {
+        if (onUpdate) onUpdate(payload.new);
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "rides",
+      },
+      (payload) => {
+        if (onDelete) onDelete(payload.old);
+      }
+    )
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED' && onError) {
+        onError(null);
+      }
+      if (err && onError) {
+        console.error("Erro na assinatura realtime da lista pendente:", err);
+        onError(err);
+      }
+    });
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Assina mudanças na corrida ativa pertencente a um motorista.
+ * @param {string} driverId 
+ * @param {Function} onChange
+ * @param {Function} onError 
+ * @returns {Function} Função de cleanup
+ */
+export function subscribeToDriverRide(driverId, onChange, onError) {
+  if (!driverId) return () => {};
+
+  const channel = supabase.channel(`driver_ride_${driverId}`);
+
+  channel
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "rides",
+        filter: `driver_id=eq.${driverId}`,
+      },
+      (payload) => {
+        if (onChange) onChange(payload.new);
+      }
+    )
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED' && onError) {
+        onError(null);
+      }
+      if (err && onError) {
+        console.error("Erro na assinatura realtime da corrida ativa do motorista:", err);
+        onError(err);
+      }
+    });
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Assina exclusão do próprio driver (invalidação de sessão zumbi).
+ * @param {string} driverId 
+ * @param {Function} onDeleted 
+ * @returns {Function} Função de cleanup
+ */
+export function subscribeToDriverStatus(driverId, onDeleted) {
+  if (!driverId) return () => {};
+
+  const channel = supabase.channel(`driver_status_${driverId}`);
+
+  channel
+    .on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "drivers",
+        filter: `id=eq.${driverId}`,
+      },
+      () => {
+        if (onDeleted) onDeleted();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

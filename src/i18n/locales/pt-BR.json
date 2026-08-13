@@ -90,5 +90,11 @@
   "alertDriverArriving": "O bicitaxista está a caminho.",
   "alertDriverArrived": "O bicitaxista chegou.",
   "alertRideStarted": "Corrida iniciada.",
-  "alertRideCompleted": "Corrida concluída."
+  "alertRideCompleted": "Corrida concluída.",
+  "rideAcceptedSuccess": "Sua solicitação foi aceita.",
+  "whatsappDriver": "Falar pelo WhatsApp",
+  "callDriver": "Ligar para o condutor",
+  "realtimeUnavailable": "Atualização em tempo real indisponível. Use Atualizar para tentar novamente.",
+  "back": "Voltar",
+  "signOut": "Sair"
 }
