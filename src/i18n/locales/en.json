@@ -99,5 +99,12 @@
   "callDriver": "Call the driver",
   "realtimeUnavailable": "Real-time updates are unavailable. Use Refresh to try again.",
   "back": "Back",
-  "signOut": "Sign out"
+  "signOut": "Sign out",
+  "useMyLocation": "Use my location",
+  "gettingLocation": "Getting location...",
+  "locationAdded": "Location added",
+  "locationErrorGeneric": "We couldn't get your location.",
+  "locationErrorDenied": "Location permission denied.",
+  "locationErrorUnsupported": "Your browser doesn't support location services.",
+  "locationShared": "Shared location"
 }

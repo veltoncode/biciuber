@@ -25,10 +25,17 @@ export async function createRide(payload) {
     status: "REQUESTED",
   };
 
+  if (payload.pickup_lat !== undefined && payload.pickup_lat !== null) {
+    rideData.pickup_lat = payload.pickup_lat;
+  }
+  if (payload.pickup_lng !== undefined && payload.pickup_lng !== null) {
+    rideData.pickup_lng = payload.pickup_lng;
+  }
+
   const { data, error } = await supabase
     .from("rides")
     .insert([rideData])
-    .select("id, public_tracking_token, status, created_at, expires_at")
+    .select("id, public_tracking_token, status, created_at, expires_at, pickup_lat, pickup_lng")
     .single();
 
   if (error) {

@@ -96,5 +96,12 @@
   "callDriver": "Ligar para o condutor",
   "realtimeUnavailable": "Atualização em tempo real indisponível. Use Atualizar para tentar novamente.",
   "back": "Voltar",
-  "signOut": "Sair"
+  "signOut": "Sair",
+  "useMyLocation": "Usar minha localização",
+  "gettingLocation": "Obtendo localização...",
+  "locationAdded": "Localização adicionada",
+  "locationErrorGeneric": "Não foi possível obter sua localização.",
+  "locationErrorDenied": "Permissão de localização negada.",
+  "locationErrorUnsupported": "Seu navegador não oferece suporte à localização.",
+  "locationShared": "Localização compartilhada"
 }

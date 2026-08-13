@@ -151,6 +151,36 @@ function PassengerApp({ onBack }) {
   const [notes, setNotes] = useState("");
 
   const [activeRide, setActiveRide] = useState(null);
+  const [pickupLat, setPickupLat] = useState(null);
+  const [pickupLng, setPickupLng] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("");
+  const [locationErrorMsg, setLocationErrorMsg] = useState("");
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("error");
+      setLocationErrorMsg(t("locationErrorUnsupported", { defaultValue: "Seu navegador não oferece suporte à localização." }));
+      return;
+    }
+    setLocationStatus("loading");
+    setLocationErrorMsg("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setPickupLat(position.coords.latitude);
+        setPickupLng(position.coords.longitude);
+        setLocationStatus("success");
+      },
+      (error) => {
+        setLocationStatus("error");
+        let msg = t("locationErrorGeneric", { defaultValue: "Não foi possível obter sua localização." });
+        if (error.code === error.PERMISSION_DENIED) {
+          msg = t("locationErrorDenied", { defaultValue: "Permissão de localização negada." });
+        }
+        setLocationErrorMsg(msg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
   const [cancelling, setCancelling] = useState(false);
   const [cancelErrorMsg, setCancelErrorMsg] = useState("");
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState("");
@@ -327,6 +357,8 @@ function PassengerApp({ onBack }) {
         passenger_count: countNum,
         has_luggage: Boolean(hasLuggage),
         notes: notes ? notes.trim() : "",
+        pickup_lat: pickupLat,
+        pickup_lng: pickupLng
       });
 
       const activeData = {
@@ -371,6 +403,10 @@ function PassengerApp({ onBack }) {
       localStorage.removeItem("biciuber-active-ride");
       setActiveRide(null);
       setStage("form");
+      setPickupLat(null);
+      setPickupLng(null);
+      setLocationStatus("");
+      setLocationErrorMsg("");
       setCancelSuccessMsg(t("rideCancelledSuccess", { defaultValue: "Solicitação cancelada." }));
     } catch (err) {
       console.error("Erro ao cancelar solicitação de corrida pelo passageiro:", {
@@ -452,6 +488,36 @@ function PassengerApp({ onBack }) {
                 placeholder="Ex: perto da igreja matriz"
                 disabled={submitting}
               />
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleGetLocation}
+                  disabled={submitting || locationStatus === "loading"}
+                  aria-label={t("useMyLocation", { defaultValue: "Usar minha localização" })}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.08)",
+                    border: `1px solid ${C.border}`,
+                    color: locationStatus === "success" ? C.online : "#fff",
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    cursor: (submitting || locationStatus === "loading") ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                  </svg>
+                  {locationStatus === "loading" && t("gettingLocation", { defaultValue: "Obtendo localização..." })}
+                  {locationStatus === "success" && t("locationAdded", { defaultValue: "Localização adicionada" })}
+                  {locationStatus !== "loading" && locationStatus !== "success" && t("useMyLocation", { defaultValue: "Usar minha localização" })}
+                </button>
+                {locationErrorMsg && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--error)" }}>{locationErrorMsg}</p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -568,6 +634,12 @@ function PassengerApp({ onBack }) {
                     <p style={{ margin: "4px 0 0", fontSize: 12, color: C.textMuted }}>
                       {t("rideCode", { defaultValue: "Código da corrida" })}: <strong style={{ color: "#fff", fontFamily: "monospace" }}>#{activeRide.id ? activeRide.id.slice(0, 6).toUpperCase() : ""}</strong>
                     </p>
+                    {activeRide.pickup_lat !== null && activeRide.pickup_lat !== undefined && (
+                      <p style={{ margin: "6px 0 0", fontSize: 11, color: C.online, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        {t("locationShared", { defaultValue: "Localização compartilhada" })}
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (

@@ -98,5 +98,12 @@
   "callDriver": "Appeler le conducteur",
   "realtimeUnavailable": "Les mises à jour en temps réel sont indisponibles. Utilisez Actualiser pour réessayer.",
   "back": "Retour",
-  "signOut": "Se déconnecter"
+  "signOut": "Se déconnecter",
+  "useMyLocation": "Utiliser ma position",
+  "gettingLocation": "Localisation en cours...",
+  "locationAdded": "Position ajoutée",
+  "locationErrorGeneric": "Impossible d’obtenir votre position.",
+  "locationErrorDenied": "Autorisation de localisation refusée.",
+  "locationErrorUnsupported": "Votre navigateur ne prend pas en charge la localisation.",
+  "locationShared": "Position partagée"
 }
