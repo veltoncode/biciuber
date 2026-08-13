@@ -1,9 +1,9 @@
-const CACHE_NAME = "bicitaxi-v4";
+const CACHE_NAME = "bicitaxi-v5";
 
 const CORE_ASSETS = [
   "/",
   "/manifest.json",
-  "/icons/bicitaxi-afua.png",
+  "/icons/bicitaxi-afua-transparent.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -87,7 +87,7 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   let title = "BiciTaxi";
-  const iconUrl = new URL("/icons/bicitaxi-afua.png", self.location.origin).href;
+  const iconUrl = new URL("/icons/bicitaxi-afua-transparent.png", self.location.origin).href;
 
   let options = {
     body: "Nova atualização recebida.",
