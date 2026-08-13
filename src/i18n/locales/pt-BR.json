@@ -103,5 +103,16 @@
   "locationErrorGeneric": "Não foi possível obter sua localização.",
   "locationErrorDenied": "Permissão de localização negada.",
   "locationErrorUnsupported": "Seu navegador não oferece suporte à localização.",
-  "locationShared": "Localização compartilhada"
+  "locationShared": "Localização compartilhada",
+  "shareLocation": "Compartilhar localização",
+  "gettingGps": "Obtendo GPS...",
+  "locationSharing": "Localização compartilhada",
+  "stopSharing": "Parar compartilhamento",
+  "cannotDetermineLocation": "Não foi possível determinar sua localização.",
+  "gpsTimeout": "O GPS demorou muito para responder.",
+  "liveBicitaxiLocation": "Localização do bicitaxista em tempo real",
+  "waitingDriverLocation": "Aguardando localização do bicitaxista...",
+  "centerOnBicitaxi": "Centralizar no bicitáxi",
+  "locationOutdated": "Localização pode estar desatualizada.",
+  "approxAccuracy": "Precisão aproximada: {{meters}} m"
 }

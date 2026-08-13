@@ -20,6 +20,8 @@ import AppAlertBanner from "./components/AppAlertBanner.jsx";
 import PushSubscribeCard from "./components/PushSubscribeCard.jsx";
 import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPref } from "./services/appAlerts.js";
 import { unsubscribeFromPush, isPushSupported, getNotificationPermission, registerDriverPushSubscription, getCurrentPushSubscription } from "./services/pushNotifications.js";
+import { createRideLocationChannel, broadcastDriverLocation, subscribeToDriverLocation, removeRideLocationChannel } from "./services/rideLocation.js";
+import RideMap from "./components/RideMap.jsx";
 
 const C = {
   bg: "var(--background)",
@@ -187,6 +189,7 @@ function PassengerApp({ onBack }) {
 
   const [liveStatus, setLiveStatus] = useState("");
   const [driverInfo, setDriverInfo] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
 
   const prevStatus = useRef(null);
   const [banner, setBanner] = useState({ visible: false, type: "info", message: "" });
@@ -311,6 +314,31 @@ function PassengerApp({ onBack }) {
     return () => unsubscribe();
   }, [activeRide?.id, activeRide?.driver_id, cancelling, t]);
 
+  // GPS 2: Supabase Realtime para a localização do motorista
+  useEffect(() => {
+    // Only subscribe if ride is active and has a driver assigned
+    if (!activeRide || !activeRide.driver_id || cancelling) return;
+    
+    // Only subscribe if ride status means driver is on the way or in progress
+    if (!["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"].includes(activeRide.status)) {
+      return;
+    }
+
+    const unsubscribe = subscribeToDriverLocation(
+      activeRide.id,
+      (location) => {
+        setDriverLocation(location);
+      },
+      (err) => {
+        console.warn("Realtime Location Error:", err);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      setDriverLocation(null);
+    };
+  }, [activeRide?.id, activeRide?.driver_id, activeRide?.status, cancelling]);
 
   const handleFormSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -677,6 +705,25 @@ function PassengerApp({ onBack }) {
                         </div>
                       </div>
                     )}
+                    
+                    {/* GPS 2: Mapa */}
+                    {activeRide.driver_id && (
+                      <div style={{ marginTop: 16 }}>
+                        <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 8, textAlign: "left" }}>
+                          {t("liveBicitaxiLocation", { defaultValue: "Localização do bicitaxista em tempo real" })}
+                        </p>
+                        <RideMap 
+                          driverLocation={driverLocation} 
+                          pickupLat={activeRide.pickup_lat} 
+                          pickupLng={activeRide.pickup_lng} 
+                        />
+                        {driverLocation && (Date.now() - driverLocation.timestamp > 30000) && (
+                           <p style={{ fontSize: 11, color: "var(--secondary)", marginTop: 6, textAlign: "left" }}>
+                             {t("locationOutdated", { defaultValue: "Localização pode estar desatualizada." })}
+                           </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -837,6 +884,12 @@ function DriverApp({ driver, onLogout }) {
   const [checkingActiveRide, setCheckingActiveRide] = useState(true);
   const [liveStatus, setLiveStatus] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // GPS 2
+  const [gpsStatus, setGpsStatus] = useState("off"); // "off" | "loading" | "sharing" | "error"
+  const gpsChannel = useRef(null);
+  const watchId = useRef(null);
+  const lastGpsEmit = useRef(0);
 
   // Alertas
   const [soundEnabled, setSoundEnabled] = useState(canPlaySound());
@@ -1112,10 +1165,81 @@ function DriverApp({ driver, onLogout }) {
       } else {
         alert(t("errorUpdateRideFailed", { defaultValue: "Não foi possível atualizar a corrida." }));
       }
-    } finally {
+} finally {
       setUpdatingStatus(false);
     }
   };
+
+  const stopSharingLocation = () => {
+    if (watchId.current) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    if (gpsChannel.current) {
+      removeRideLocationChannel(gpsChannel.current);
+      gpsChannel.current = null;
+    }
+    setGpsStatus("off");
+  };
+
+  const startSharingLocation = () => {
+    if (!activeDriverRide) return;
+    if (!navigator.geolocation) {
+      alert(t("locationErrorUnsupported", { defaultValue: "Seu navegador não oferece suporte à localização." }));
+      return;
+    }
+    
+    setGpsStatus("loading");
+    
+    // Garantir limpeza anterior
+    if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+    if (gpsChannel.current) removeRideLocationChannel(gpsChannel.current);
+
+    const channel = createRideLocationChannel(activeDriverRide.id);
+    gpsChannel.current = channel;
+
+    watchId.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setGpsStatus("sharing");
+        const now = Date.now();
+        // Throttle: 1 envio a cada 2s
+        if (now - lastGpsEmit.current >= 2000) {
+          lastGpsEmit.current = now;
+          broadcastDriverLocation(gpsChannel.current, {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp
+          });
+        }
+      },
+      (error) => {
+        console.error("GPS Error:", error);
+        stopSharingLocation();
+        if (error.code === error.PERMISSION_DENIED) {
+          alert(t("locationErrorDenied", { defaultValue: "Permissão de localização negada." }));
+        } else if (error.code === error.TIMEOUT) {
+          alert(t("gpsTimeout", { defaultValue: "O GPS demorou muito para responder." }));
+        } else {
+          alert(t("cannotDetermineLocation", { defaultValue: "Não foi possível determinar sua localização." }));
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+    );
+  };
+
+  // Cleanup GPS quando a corrida terminar, for cancelada ou componente desmontar
+  useEffect(() => {
+    if (!activeDriverRide || ["COMPLETED", "CANCELLED"].includes(activeDriverRide.status)) {
+      stopSharingLocation();
+    }
+  }, [activeDriverRide]);
+
+  useEffect(() => {
+    return () => {
+      stopSharingLocation();
+    };
+  }, []);
 
 
   const handleLogout = async () => {
@@ -1346,7 +1470,22 @@ function DriverApp({ driver, onLogout }) {
                   </div>
                 )}
 
-                <div style={{ marginTop: 10 }}>
+                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    className="btn"
+                    disabled={gpsStatus === "loading"}
+                    onClick={gpsStatus === "sharing" ? stopSharingLocation : startSharingLocation}
+                    style={{ width: "100%", padding: "12px", borderRadius: 12, background: gpsStatus === "sharing" ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.1)", color: gpsStatus === "sharing" ? "#ef4444" : "#fff", border: `1px solid ${gpsStatus === "sharing" ? "rgba(239, 68, 68, 0.3)" : "rgba(255, 255, 255, 0.2)"}`, fontWeight: 600, fontSize: 13, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ animation: gpsStatus === "loading" ? "spin 1s linear infinite" : "none" }}>
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {gpsStatus === "off" && t("shareLocation", { defaultValue: "Compartilhar localização" })}
+                    {gpsStatus === "loading" && t("gettingGps", { defaultValue: "Obtendo GPS..." })}
+                    {gpsStatus === "sharing" && t("stopSharing", { defaultValue: "Parar compartilhamento" })}
+                  </button>
+
                   {activeDriverRide.status === "ACCEPTED" && (
                     <button
                       className="btn"

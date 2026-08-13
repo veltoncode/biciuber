@@ -105,5 +105,16 @@
   "locationErrorGeneric": "Impossible d’obtenir votre position.",
   "locationErrorDenied": "Autorisation de localisation refusée.",
   "locationErrorUnsupported": "Votre navigateur ne prend pas en charge la localisation.",
-  "locationShared": "Position partagée"
+  "locationShared": "Position partagée",
+  "shareLocation": "Partager ma position",
+  "gettingGps": "Localisation GPS...",
+  "locationSharing": "Position partagée",
+  "stopSharing": "Arrêter le partage",
+  "cannotDetermineLocation": "Impossible de déterminer votre position.",
+  "gpsTimeout": "Le GPS a mis trop de temps à répondre.",
+  "liveBicitaxiLocation": "Position du bicitaxi en temps réel",
+  "waitingDriverLocation": "En attente de la position du conducteur...",
+  "centerOnBicitaxi": "Centrer sur le bicitaxi",
+  "locationOutdated": "La position peut être obsolète.",
+  "approxAccuracy": "Précision approximative : {{meters}} m"
 }

@@ -106,5 +106,16 @@
   "locationErrorGeneric": "We couldn't get your location.",
   "locationErrorDenied": "Location permission denied.",
   "locationErrorUnsupported": "Your browser doesn't support location services.",
-  "locationShared": "Shared location"
+  "locationShared": "Shared location",
+  "shareLocation": "Share location",
+  "gettingGps": "Getting GPS...",
+  "locationSharing": "Location sharing",
+  "stopSharing": "Stop sharing",
+  "cannotDetermineLocation": "We couldn't determine your location.",
+  "gpsTimeout": "GPS took too long to respond.",
+  "liveBicitaxiLocation": "Live bicitaxi location",
+  "waitingDriverLocation": "Waiting for the driver's location...",
+  "centerOnBicitaxi": "Center on bicitaxi",
+  "locationOutdated": "Location may be outdated.",
+  "approxAccuracy": "Approximate accuracy: {{meters}} m"
 }
