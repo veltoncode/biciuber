@@ -22,6 +22,7 @@ import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPre
 import { unsubscribeFromPush, isPushSupported, getNotificationPermission, registerDriverPushSubscription, getCurrentPushSubscription } from "./services/pushNotifications.js";
 import { createRideLocationChannel, broadcastDriverLocation, subscribeToDriverLocation, removeRideLocationChannel } from "./services/rideLocation.js";
 import RideMap from "./components/RideMap.jsx";
+import { AvailableDrivers } from "./components/passenger/AvailableDrivers.jsx";
 
 const C = {
   bg: "var(--background)",
@@ -140,7 +141,7 @@ const inputStyle = {
 // ---------------- PASSENGER ----------------
 function PassengerApp({ onBack }) {
   const { t } = useTranslation();
-  const [stage, setStage] = useState("form"); // "form" | "requested"
+  const [stage, setStage] = useState("choice"); // "choice" | "form" | "requested" | "available_drivers"
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -463,13 +464,54 @@ function PassengerApp({ onBack }) {
         visible={banner.visible} 
         onClose={() => setBanner({ ...banner, visible: false })} 
       />
-      <TopBar subtitle="Passageiro" onBack={!activeRide ? onBack : undefined} backLabel={t("back", { defaultValue: "Voltar" })} />
+      <TopBar 
+        subtitle="Passageiro" 
+        onBack={!activeRide ? (stage === "choice" ? onBack : () => setStage("choice")) : undefined} 
+        backLabel={t("back", { defaultValue: "Voltar" })} 
+      />
       {liveStatus && (
         <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
           {liveStatus}
         </div>
       )}
       <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
+        {stage === "choice" && (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 24, padding: "20px 0" }}>
+            <h2 style={{ fontSize: 22, color: "#fff", margin: 0, fontWeight: 700 }}>
+              {t("howToRequest", { defaultValue: "Como você quer chamar?" })}
+            </h2>
+            
+            <div 
+              className="glass-card choice-card" 
+              onClick={() => setStage("form")}
+              style={{ padding: 20, cursor: "pointer", display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${C.primary}` }}
+            >
+              <h3 style={{ margin: 0, fontSize: 18, color: "#fff" }}>{t("requestNow", { defaultValue: "Solicitar agora" })}</h3>
+              <p style={{ margin: 0, fontSize: 14, color: C.textMuted }}>{t("requestNowDesc", { defaultValue: "Envie sua chamada para os bicitaxistas disponíveis." })}</p>
+            </div>
+
+            <div 
+              className="glass-card choice-card" 
+              onClick={() => setStage("available_drivers")}
+              style={{ padding: 20, cursor: "pointer", display: "flex", flexDirection: "column", gap: 8 }}
+            >
+              <h3 style={{ margin: 0, fontSize: 18, color: "#fff" }}>{t("chooseDriver", { defaultValue: "Escolher um bicitaxista" })}</h3>
+              <p style={{ margin: 0, fontSize: 14, color: C.textMuted }}>{t("chooseDriverDesc", { defaultValue: "Veja quem está livre e fale diretamente pelo WhatsApp." })}</p>
+            </div>
+          </div>
+        )}
+
+        {stage === "available_drivers" && (
+          <AvailableDrivers 
+            onBack={() => setStage("choice")}
+            pickup={pickup}
+            destination={dest}
+            count={count}
+            hasLuggage={hasLuggage}
+            t={t}
+          />
+        )}
+
         {stage === "form" && (
           <form onSubmit={handleFormSubmit} className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {cancelSuccessMsg && (

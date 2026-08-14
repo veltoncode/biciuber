@@ -116,5 +116,21 @@
   "waitingDriverLocation": "En attente de la position du conducteur...",
   "centerOnBicitaxi": "Centrer sur le bicitaxi",
   "locationOutdated": "La position peut être obsolète.",
-  "approxAccuracy": "Précision approximative : {{meters}} m"
+  "approxAccuracy": "Précision approximative : {{meters}} m",
+  "howToRequest": "Comment souhaitez-vous appeler ?",
+  "requestNow": "Demander maintenant",
+  "requestNowDesc": "Envoyez votre demande à tous les bicitaxis disponibles.",
+  "chooseDriver": "Choisir un bicitaxi",
+  "chooseDriverDesc": "Voyez qui est libre et contactez-les directement via WhatsApp.",
+  "availableDriversTitle": "Bicitaxis disponibles",
+  "availableDriversSubtitle": "Choisissez un bicitaxi et contactez-le directement.",
+  "whatsappMessageLanguageNote": "Votre message sera envoyé au bicitaxi en portugais.",
+  "loadingAvailableDrivers": "Recherche de bicitaxis disponibles...",
+  "errorLoadingDrivers": "Impossible de charger les bicitaxis disponibles.",
+  "tryAgain": "Réessayer",
+  "noDriversAvailable": "Aucun bicitaxi n'est disponible pour le moment.",
+  "backToRequestRide": "Retourner et demander un bicitaxi",
+  "availableNow": "Disponible maintenant",
+  "call": "Appeler",
+  "whatsapp": "WhatsApp"
 }
