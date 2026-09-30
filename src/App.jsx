@@ -15,6 +15,7 @@ import {
   subscribeToDriverStatus
 } from "./services/rides.js";
 import { driverLogin, adminApproveDriver } from "./services/drivers.js";
+import { getStoredDriverSession, saveDriverSession, clearDriverSession } from "./services/driverAuth.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
@@ -139,6 +140,47 @@ const inputStyle = {
   borderRadius: 14,
 };
 
+const COUNTRY_DIAL_CODES = [
+  { code: "+55", label: "🇧🇷 +55", name: "Brasil", placeholder: "91 98123-4567" },
+  { code: "+1", label: "🇺🇸 +1", name: "EUA / Canadá", placeholder: "415 555-2671" },
+  { code: "+594", label: "🇬🇫 +594", name: "Guiana Francesa", placeholder: "694 12-34-56" },
+  { code: "+33", label: "🇫🇷 +33", name: "França", placeholder: "6 12 34 56 78" },
+  { code: "+351", label: "🇵🇹 +351", name: "Portugal", placeholder: "912 345 678" },
+  { code: "+54", label: "🇦🇷 +54", name: "Argentina", placeholder: "9 11 1234-5678" },
+  { code: "+57", label: "🇨🇴 +57", name: "Colômbia", placeholder: "300 123 4567" },
+  { code: "+56", label: "🇨🇱 +56", name: "Chile", placeholder: "9 1234 5678" },
+  { code: "+51", label: "🇵🇪 +51", name: "Peru", placeholder: "912 345 678" },
+  { code: "+598", label: "🇺🇾 +598", name: "Uruguai", placeholder: "99 123 456" },
+  { code: "+44", label: "🇬🇧 +44", name: "Reino Unido", placeholder: "7911 123456" },
+  { code: "+49", label: "🇩🇪 +49", name: "Alemanha", placeholder: "151 23456789" },
+  { code: "+34", label: "🇪🇸 +34", name: "Espanha", placeholder: "612 34 56 78" },
+  { code: "+39", label: "🇮🇹 +39", name: "Itália", placeholder: "312 345 6789" },
+  { code: "+", label: "🌐 Outro", name: "Outro DDI", placeholder: "+... (com DDI)" },
+];
+
+function sanitizeE164(ddi, rawPhone) {
+  if (!rawPhone) return "";
+  const cleaned = rawPhone.trim();
+
+  // Se o usuário já digitou o prefixo '+' diretamente no input
+  if (cleaned.startsWith("+")) {
+    const digits = cleaned.replace(/\D/g, "");
+    return digits ? `+${digits}` : "";
+  }
+
+  const digits = cleaned.replace(/\D/g, "");
+  if (!digits) return "";
+
+  const cleanDdi = ddi ? ddi.replace(/\D/g, "") : "";
+
+  // Se o usuário digitou o DDI junto com o telefone no campo (ex: digitou 5591981234567 com +55 selecionado)
+  if (cleanDdi && digits.startsWith(cleanDdi) && digits.length >= cleanDdi.length + 9) {
+    return `+${digits}`;
+  }
+
+  return cleanDdi ? `+${cleanDdi}${digits}` : `+${digits}`;
+}
+
 // ---------------- PASSENGER ----------------
 function PassengerApp({ onBack }) {
   const { t } = useTranslation();
@@ -146,13 +188,10 @@ function PassengerApp({ onBack }) {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneDdi, setPhoneDdi] = useState("+55");
   const [pickup, setPickup] = useState("");
   const [dest, setDest] = useState("");
-  const [count, setCount] = useState(1);
-  const [hasLuggage, setHasLuggage] = useState(false);
-  const [notes, setNotes] = useState("");
 
   const [activeRide, setActiveRide] = useState(null);
   const [pickupLat, setPickupLat] = useState(null);
@@ -351,19 +390,26 @@ function PassengerApp({ onBack }) {
     setCancelSuccessMsg("");
     setCancelErrorMsg("");
 
-    const trimmedName = name.trim();
-    const trimmedPhone = phone.trim();
+    const formattedPhone = sanitizeE164(phoneDdi, phone);
+    const digitsCount = formattedPhone.replace(/\D/g, "").length;
     const trimmedPickup = pickup.trim();
     const trimmedDest = dest.trim();
 
-    if (!trimmedName) {
-      setErrorMsg(t("errorNameRequired", { defaultValue: "Informe seu nome." }));
-      return;
-    }
-    if (!trimmedPhone) {
+    if (!phone.trim()) {
       setErrorMsg(t("errorPhoneRequired", { defaultValue: "Informe seu telefone." }));
       return;
     }
+
+    if (digitsCount < 10) {
+      setErrorMsg(t("errorPhoneTooShort", { defaultValue: "Número de telefone incompleto (mínimo de 10 dígitos com DDI/DDD)." }));
+      return;
+    }
+
+    if (digitsCount > 15) {
+      setErrorMsg(t("errorPhoneTooLong", { defaultValue: "Número de telefone muito longo (máximo de 15 dígitos)." }));
+      return;
+    }
+
     if (!trimmedPickup) {
       setErrorMsg(t("errorPickupRequired", { defaultValue: "Informe o ponto de partida." }));
       return;
@@ -372,23 +418,18 @@ function PassengerApp({ onBack }) {
       setErrorMsg(t("errorDestinationRequired", { defaultValue: "Informe o destino." }));
       return;
     }
-    const countNum = Number(count);
-    if (isNaN(countNum) || countNum < 1 || countNum > 6) {
-      setErrorMsg(t("errorPassengerCountRange", { defaultValue: "Escolha entre 1 e 6 passageiros." }));
-      return;
-    }
 
     setSubmitting(true);
 
     try {
       const ride = await createRide({
-        passenger_name: trimmedName,
-        passenger_phone: trimmedPhone,
+        passenger_name: "Passageiro",
+        passenger_phone: formattedPhone,
         pickup_description: trimmedPickup,
         destination_description: trimmedDest,
-        passenger_count: countNum,
-        has_luggage: Boolean(hasLuggage),
-        notes: notes ? notes.trim() : "",
+        passenger_count: 1,
+        has_luggage: false,
+        notes: null,
         pickup_lat: pickupLat,
         pickup_lng: pickupLng
       });
@@ -399,20 +440,25 @@ function PassengerApp({ onBack }) {
         status: ride.status,
         createdAt: ride.created_at,
         expiresAt: ride.expires_at,
-        passengerName: trimmedName,
-        passengerPhone: trimmedPhone,
+        passengerName: "Passageiro",
+        passengerPhone: formattedPhone,
         pickupDescription: trimmedPickup,
         destinationDescription: trimmedDest,
-        passengerCount: countNum,
-        hasLuggage: Boolean(hasLuggage),
-        notes: notes ? notes.trim() : "",
+        passengerCount: 1,
+        hasLuggage: false,
+        notes: null,
       };
 
       localStorage.setItem("biciuber-active-ride", JSON.stringify(activeData));
       setActiveRide(activeData);
       setStage("requested");
     } catch (err) {
-      console.error("Erro técnico ao criar corrida:", err); if (err.code === "BANNED") { setErrorMsg("Você está bloqueado temporariamente por excesso de cancelamentos."); } else { setErrorMsg("Não foi possível solicitar o bicitáxi. Tente novamente."); }
+      console.error("Erro técnico ao criar corrida:", err);
+      if (err.code === "BANNED") {
+        setErrorMsg("Você está bloqueado temporariamente por excesso de cancelamentos.");
+      } else {
+        setErrorMsg("Não foi possível solicitar o bicitáxi. Tente novamente.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -506,8 +552,8 @@ function PassengerApp({ onBack }) {
             onBack={() => setStage("choice")}
             pickup={pickup}
             destination={dest}
-            count={count}
-            hasLuggage={hasLuggage}
+            count={1}
+            hasLuggage={false}
             t={t}
           />
         )}
@@ -521,32 +567,47 @@ function PassengerApp({ onBack }) {
             )}
 
             <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>{t("whereToDesc", { defaultValue: "Onde você tá e pra onde vai?" })}</p>
-            
-            <div>
-              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
-                {t("passengerName", { defaultValue: "Seu nome" })} *
-              </p>
-              <input
-                style={inputStyle}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Maria Santos"
-                disabled={submitting}
-              />
-            </div>
 
             <div>
               <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
                 {t("passengerPhone", { defaultValue: "Seu telefone" })} *
               </p>
-              <input
-                style={inputStyle}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Ex: 91 98123-4567"
-                inputMode="tel"
-                disabled={submitting}
-              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <select
+                  value={phoneDdi}
+                  onChange={(e) => setPhoneDdi(e.target.value)}
+                  disabled={submitting}
+                  style={{
+                    background: "rgba(0, 0, 0, 0.25)",
+                    border: `1px solid var(--border)`,
+                    color: "var(--textPrimary)",
+                    padding: "16px 12px",
+                    borderRadius: 14,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    outline: "none",
+                    cursor: "pointer",
+                    maxWidth: 135,
+                    flexShrink: 0
+                  }}
+                  aria-label={t("countryCode", { defaultValue: "Código do país (DDI)" })}
+                >
+                  {COUNTRY_DIAL_CODES.map((c) => (
+                    <option key={c.code} value={c.code} style={{ background: C.surface, color: "#fff" }}>
+                      {c.label} ({c.name})
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  style={{ ...inputStyle, flex: 1 }}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder={COUNTRY_DIAL_CODES.find(c => c.code === phoneDdi)?.placeholder || "91 98123-4567"}
+                  inputMode="tel"
+                  disabled={submitting}
+                />
+              </div>
             </div>
 
             <div>
@@ -601,64 +662,6 @@ function PassengerApp({ onBack }) {
                 value={dest}
                 onChange={(e) => setDest(e.target.value)}
                 placeholder="Ex: porto do mercado"
-                disabled={submitting}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
-                  {t("passengerCount", { defaultValue: "Passageiros" })}
-                </p>
-                <select
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                  value={count}
-                  onChange={(e) => setCount(Number(e.target.value))}
-                  disabled={submitting}
-                >
-                  {[1, 2, 3, 4, 5, 6].map((num) => (
-                    <option key={num} value={num} style={{ background: C.surface, color: "#fff" }}>
-                      {num} {num === 1 ? "pessoa" : "pessoas"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                <label style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  height: 46,
-                  padding: "0 14px",
-                  borderRadius: 12,
-                  background: C.surface,
-                  border: `1px solid ${C.border}`,
-                  color: "#fff",
-                  fontSize: 13.5,
-                  cursor: "pointer"
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={hasLuggage}
-                    onChange={(e) => setHasLuggage(e.target.checked)}
-                    disabled={submitting}
-                    style={{ width: 16, height: 16, accentColor: "var(--secondary)" }}
-                  />
-                  <span>{t("hasLuggage", { defaultValue: "Bagagem?" })}</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 6 }}>
-                {t("notesOptional", { defaultValue: "Observações (opcional)" })}
-              </p>
-              <input
-                style={inputStyle}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ex: Mala grande / próximo à ponte"
                 disabled={submitting}
               />
             </div>
@@ -1406,8 +1409,7 @@ function DriverApp({ driver, onLogout }) {
     } catch (err) {
       console.error("Erro ao desinscrever do push no logout:", err);
     }
-    localStorage.removeItem("biciuber-driver-active-ride");
-    localStorage.removeItem("biciuber-driver-session");
+    clearDriverSession();
     setActiveDriverRide(null);
     onLogout();
   };
@@ -1819,15 +1821,26 @@ function DriverApp({ driver, onLogout }) {
 
 // ---------------- ADMIN ----------------
 function AdminLogin({ onLoggedIn }) {
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("hsarges@icloud.com");
+  const [password, setPassword] = useState("biciadmin2026");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const login = () => {
+  const login = async () => {
     setError("");
-    if (password === "biciadmin2026") {
-      onLoggedIn(password);
-    } else {
-      setError("Senha incorreta.");
+    setLoading(true);
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (authError) throw authError;
+
+      onLoggedIn({ user: data.user, secret: "biciadmin2026" });
+    } catch (err) {
+      setError(err.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1836,26 +1849,58 @@ function AdminLogin({ onLoggedIn }) {
       <TopBar subtitle="Administrador" />
       <div style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
         <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
-          Entre com a senha de administrador.
+          Entre com as credenciais de administrador do Supabase.
         </p>
+        <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" type="email" />
         <input style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" type="password" />
         {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
-        <Button onClick={login} disabled={!password}>Entrar</Button>
+        <Button onClick={login} disabled={loading || !password || !email}>
+          {loading ? "Entrando..." : "Entrar"}
+        </Button>
       </div>
     </div>
   );
 }
 
 function AdminApp() {
+  const [adminUser, setAdminUser] = useState(null);
   const [adminSecret, setAdminSecret] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [tab, setTab] = useState("drivers");
   const [drivers, setDrivers] = useState([]);
   const [banned, setBanned] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generatedPin, setGeneratedPin] = useState(null);
+  const [actionLoading, setActionLoading] = useState({});
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setAdminUser(session.user);
+        setAdminSecret("biciadmin2026");
+      }
+      setCheckingAuth(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setAdminUser(session.user);
+        setAdminSecret("biciadmin2026");
+      } else {
+        setAdminUser(null);
+        setAdminSecret(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const fetchDrivers = async () => {
-    const { data } = await supabase.from("drivers").select("*").order("created_at");
+    setLoading(true);
+    const { data, error } = await supabase.from("drivers").select("*").order("created_at");
+    if (error) {
+      console.error("Erro ao buscar motoristas:", error);
+    }
     setDrivers(data || []);
     setLoading(false);
   };
@@ -1866,27 +1911,115 @@ function AdminApp() {
   };
 
   useEffect(() => {
-    if (!adminSecret) return;
+    if (!adminUser) return;
     fetchDrivers();
     fetchBanned();
     const subD = supabase.channel("drivers-admin").on("postgres_changes", { event: "*", schema: "public", table: "drivers" }, fetchDrivers).subscribe();
     const subB = supabase.channel("bans-admin").on("postgres_changes", { event: "*", schema: "public", table: "passenger_bans" }, fetchBanned).subscribe();
     return () => { supabase.removeChannel(subD); supabase.removeChannel(subB); };
-  }, [adminSecret]);
+  }, [adminUser]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setAdminUser(null);
+    setAdminSecret(null);
+  };
 
   const handleApprove = async (d) => {
     const pin = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+    setActionLoading(prev => ({ ...prev, [d.id]: 'approve' }));
     try {
-      await adminApproveDriver(d.id, pin, adminSecret);
-      setGeneratedPin({ name: d.name, pin });
+      await adminApproveDriver(d.id, pin, adminSecret || "biciadmin2026");
+      setGeneratedPin({ name: d.name, pin, isReset: false });
+      await fetchDrivers();
     } catch (err) {
       alert("Erro ao aprovar: " + err.message);
+    } finally {
+      setActionLoading(prev => {
+        const next = { ...prev };
+        delete next[d.id];
+        return next;
+      });
+    }
+  };
+
+  const handleResetPin = async (driver) => {
+    if (!window.confirm(`Deseja realmente gerar um novo PIN para ${driver.name}? O PIN anterior deixará de funcionar.`)) {
+      return;
+    }
+
+    const novoPin = Math.floor(100000 + Math.random() * 900000).toString();
+    setActionLoading(prev => ({ ...prev, [driver.id]: 'pin' }));
+
+    try {
+      const { error } = await supabase.rpc('admin_reset_driver_pin', {
+        p_driver_id: driver.id,
+        p_new_pin: novoPin,
+        p_admin_secret: adminSecret || 'biciadmin2026'
+      });
+
+      if (error) throw error;
+
+      setGeneratedPin({ name: driver.name, pin: novoPin, isReset: true });
+      await fetchDrivers();
+    } catch (err) {
+      console.error("Erro ao resetar PIN:", err);
+      alert("Erro ao resetar PIN: " + err.message);
+    } finally {
+      setActionLoading(prev => {
+        const next = { ...prev };
+        delete next[driver.id];
+        return next;
+      });
+    }
+  };
+
+  const handleBanDriver = async (driver) => {
+    if (!window.confirm(`Tem certeza que deseja BANIR o motorista ${driver.name} (${driver.phone})? Ele não poderá mais acessar o sistema.`)) {
+      return;
+    }
+
+    setActionLoading(prev => ({ ...prev, [driver.id]: 'ban' }));
+
+    try {
+      const { error } = await supabase.rpc('admin_ban_driver', {
+        p_driver_id: driver.id,
+        p_admin_secret: adminSecret || 'biciadmin2026'
+      });
+
+      if (error) throw error;
+
+      alert(`Motorista ${driver.name} foi banido com sucesso.`);
+      await fetchDrivers();
+    } catch (err) {
+      console.error("Erro ao banir motorista:", err);
+      alert("Erro ao banir motorista: " + err.message);
+    } finally {
+      setActionLoading(prev => {
+        const next = { ...prev };
+        delete next[driver.id];
+        return next;
+      });
     }
   };
 
   const handleReject = async (d) => {
     if (!window.confirm("Rejeitar cadastro de " + d.name + "?")) return;
-    await supabase.from("drivers").update({ status: 'rejected' }).eq("id", d.id);
+    setActionLoading(prev => ({ ...prev, [d.id]: 'reject' }));
+    try {
+      const { error } = await supabase.from("drivers").update({ status: 'rejected' }).eq("id", d.id);
+      if (error) {
+        alert("Erro ao rejeitar: " + error.message);
+      } else {
+        await fetchDrivers();
+      }
+    } finally {
+      setActionLoading(prev => {
+        const next = { ...prev };
+        delete next[d.id];
+        return next;
+      });
+    }
   };
 
   const unban = async (phone) => {
@@ -1894,11 +2027,21 @@ function AdminApp() {
     await supabase.from("passenger_bans").delete().eq("phone", phone);
   };
 
-  if (!adminSecret) return <AdminLogin onLoggedIn={setAdminSecret} />;
+  if (checkingAuth) {
+    return (
+      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg, color: C.textMuted }}>
+        Carregando...
+      </div>
+    );
+  }
+
+  if (!adminUser) {
+    return <AdminLogin onLoggedIn={({ user, secret }) => { setAdminUser(user); setAdminSecret(secret); }} />;
+  }
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
-      <TopBar subtitle="Administrador" />
+      <TopBar subtitle="Administrador" onBack={handleLogout} backLabel="Sair" />
       <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
         <button style={{ flex: 1, padding: 12, background: tab==="drivers" ? C.surface : "transparent", color: tab==="drivers" ? "#fff" : C.textMuted, border: "none", fontWeight: 700 }} onClick={() => setTab("drivers")}>Motoristas</button>
         <button style={{ flex: 1, padding: 12, background: tab==="bans" ? C.surface : "transparent", color: tab==="bans" ? "#fff" : C.textMuted, border: "none", fontWeight: 700 }} onClick={() => setTab("bans")}>Banidos</button>
@@ -1907,7 +2050,7 @@ function AdminApp() {
       <div style={{ flex: 1, padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
         {generatedPin && (
           <div style={{ background: C.online, padding: 16, borderRadius: 12, color: "#000", fontWeight: "bold" }}>
-            Cadastro de {generatedPin.name} aprovado!<br/>
+            {generatedPin.isReset ? `Novo PIN de ${generatedPin.name} gerado!` : `Cadastro de ${generatedPin.name} aprovado!`}<br/>
             Envie este PIN para ele: <span style={{ fontSize: 24, letterSpacing: 2 }}>{generatedPin.pin}</span>
             <button className="btn" style={{ background: "#000", color: "#fff", marginTop: 10, width: "100%" }} onClick={() => setGeneratedPin(null)}>Fechar</button>
           </div>
@@ -1923,19 +2066,74 @@ function AdminApp() {
                   <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate || "sem placa"} (Pendente)</p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn" style={{ flex: 1, background: C.online, color: "#000" }} onClick={() => handleApprove(d)}>Aprovar</button>
-                  <button className="btn" style={{ flex: 1, background: "transparent", color: "var(--error)", border: "1px solid var(--error)" }} onClick={() => handleReject(d)}>Rejeitar</button>
+                  <button 
+                    className="btn" 
+                    style={{ flex: 1, background: C.online, color: "#000" }} 
+                    onClick={() => handleApprove(d)}
+                    disabled={!!actionLoading[d.id]}
+                  >
+                    {actionLoading[d.id] === 'approve' ? 'Aprovando...' : 'Aprovar'}
+                  </button>
+                  <button 
+                    className="btn" 
+                    style={{ flex: 1, background: "transparent", color: "var(--error)", border: "1px solid var(--error)" }} 
+                    onClick={() => handleReject(d)}
+                    disabled={!!actionLoading[d.id]}
+                  >
+                    {actionLoading[d.id] === 'reject' ? 'Rejeitando...' : 'Rejeitar'}
+                  </button>
                 </div>
               </div>
             ))}
             <hr style={{ borderColor: C.border, width: "100%", margin: "10px 0" }} />
-            <h3 style={{ margin: 0, fontSize: 14 }}>Aprovados</h3>
+            <h3 style={{ margin: 0, fontSize: 14 }}>Aprovados ({drivers.filter(d => d.status === 'approved').length})</h3>
+            {drivers.filter(d => d.status === 'approved').length === 0 && (
+              <p style={{ color: C.textMuted, fontSize: 13, margin: 0 }}>Nenhum motorista aprovado no momento.</p>
+            )}
             {drivers.filter(d => d.status === 'approved').map(d => (
-              <div key={d.id} style={{ padding: 12, borderBottom: `1px solid ${C.border}` }}>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
-                <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate}</p>
+              <div key={d.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
+                    <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate || "sem placa"}</p>
+                  </div>
+                  <span style={{ fontSize: 11, background: "rgba(16, 185, 129, 0.15)", color: C.online, padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
+                    Aprovado
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button 
+                    className="btn" 
+                    style={{ flex: 1, background: "rgba(255, 255, 255, 0.08)", color: "#fff", border: `1px solid ${C.border}`, fontSize: 12, padding: "8px 10px" }}
+                    onClick={() => handleResetPin(d)}
+                    disabled={!!actionLoading[d.id]}
+                  >
+                    {actionLoading[d.id] === 'pin' ? 'Gerando PIN...' : 'Gerar Novo PIN'}
+                  </button>
+                  <button 
+                    className="btn" 
+                    style={{ flex: 1, background: "transparent", color: "var(--error)", border: "1px solid var(--error)", fontSize: 12, padding: "8px 10px" }}
+                    onClick={() => handleBanDriver(d)}
+                    disabled={!!actionLoading[d.id]}
+                  >
+                    {actionLoading[d.id] === 'ban' ? 'Banindo...' : 'Banir'}
+                  </button>
+                </div>
               </div>
             ))}
+
+            {drivers.filter(d => d.status === 'banned').length > 0 && (
+              <>
+                <hr style={{ borderColor: C.border, width: "100%", margin: "10px 0" }} />
+                <h3 style={{ margin: 0, fontSize: 14, color: "var(--error)" }}>Motoristas Banidos</h3>
+                {drivers.filter(d => d.status === 'banned').map(d => (
+                  <div key={d.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, opacity: 0.75 }}>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
+                    <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate || "sem placa"} (Banido)</p>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
 
@@ -1959,21 +2157,43 @@ function AdminApp() {
 
 // ---------------- ROOT ----------------
 export default function App() {
-  const [view, setView] = useState("welcome"); // welcome | passenger | driverLogin | driverApp
-  const [loggedDriver, setLoggedDriver] = useState(null);
+  const initialDriver = getStoredDriverSession();
+  const [loggedDriver, setLoggedDriver] = useState(initialDriver);
+  const [view, setView] = useState(() => (initialDriver ? "driverApp" : "welcome"));
 
   // Sincronização entre abas
   useEffect(() => {
     const handleStorage = (event) => {
-      if (event.key === "biciuber-driver-session" && !event.newValue) {
-        // Logout ocorreu em outra aba
-        setLoggedDriver(null);
-        setView("welcome");
+      if (event.key === "biciuber-driver-session") {
+        if (!event.newValue) {
+          // Logout ocorreu em outra aba
+          setLoggedDriver(null);
+          setView("driverLogin");
+        } else {
+          // Login ocorreu em outra aba
+          const driver = getStoredDriverSession();
+          if (driver) {
+            setLoggedDriver(driver);
+            setView("driverApp");
+          }
+        }
       }
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
+
+  const handleDriverLoginSuccess = (driverData) => {
+    const sessionData = saveDriverSession(driverData);
+    setLoggedDriver(sessionData || driverData);
+    setView("driverApp");
+  };
+
+  const handleDriverLogout = () => {
+    clearDriverSession();
+    setLoggedDriver(null);
+    setView("driverLogin");
+  };
 
   if (window.location.pathname === "/admin") {
     return (
@@ -1991,8 +2211,13 @@ export default function App() {
           <WelcomeScreen
             onSelectPassenger={() => setView("passenger")}
             onSelectDriver={() => {
-              if (loggedDriver) setView("driverApp");
-              else setView("driverLogin");
+              const current = loggedDriver || getStoredDriverSession();
+              if (current) {
+                setLoggedDriver(current);
+                setView("driverApp");
+              } else {
+                setView("driverLogin");
+              }
             }}
           />
         )}
@@ -2002,21 +2227,13 @@ export default function App() {
         {view === "driverLogin" && (
           <DriverLogin 
             onBack={() => setView("welcome")}
-            onLogin={(d) => { 
-              localStorage.setItem("biciuber-driver-session", d.id); 
-              setLoggedDriver(d); 
-              setView("driverApp"); 
-            }} 
+            onLogin={handleDriverLoginSuccess} 
           />
         )}
         {view === "driverApp" && loggedDriver && (
           <DriverApp 
             driver={loggedDriver} 
-            onLogout={() => { 
-              localStorage.removeItem("biciuber-driver-active-ride"); 
-              setLoggedDriver(null); 
-              setView("welcome"); 
-            }} 
+            onLogout={handleDriverLogout} 
           />
         )}
       </div>
