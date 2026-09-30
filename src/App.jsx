@@ -880,25 +880,46 @@ function DriverLogin({ onLogin, onBack }) {
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('biciuber_driver_token');
+      const stored = getStoredDriverSession();
+      if (token && stored) {
+        onLogin(stored);
+      }
+    }
+  }, []);
+
   const tryLogin = async () => {
     setLoading(true);
     setError("");
     try {
       const data = await driverLogin(phone, pin);
+      console.log("driverLogin bem-sucedido:", data);
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('biciuber_driver_token', data.session_token);
+        localStorage.setItem('biciuber_driver_id', data.driver_id);
+        localStorage.setItem('biciuber_driver_data', JSON.stringify(data));
+      }
+
       setLoading(false);
       onLogin({
         id: data.driver_id,
+        driver_id: data.driver_id,
         name: data.name,
         plate: data.plate,
-        sessionToken: data.session_token
+        sessionToken: data.session_token,
+        session_token: data.session_token
       });
     } catch (err) {
+      console.error("Erro no login do motorista:", err);
       setLoading(false);
-      if (err.message.includes("DRIVER_NOT_FOUND")) {
+      if (err.message && err.message.includes("DRIVER_NOT_FOUND")) {
         setError("Telefone não encontrado.");
-      } else if (err.message.includes("DRIVER_NOT_APPROVED")) {
+      } else if (err.message && err.message.includes("DRIVER_NOT_APPROVED")) {
         setError("Seu cadastro está pendente ou foi rejeitado. Fale com o administrador.");
-      } else if (err.message.includes("INVALID_PIN")) {
+      } else if (err.message && err.message.includes("INVALID_PIN")) {
         setError("PIN inválido.");
       } else {
         setError("Erro ao fazer login: " + err.message);
@@ -1409,6 +1430,11 @@ function DriverApp({ driver, onLogout }) {
     } catch (err) {
       console.error("Erro ao desinscrever do push no logout:", err);
     }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('biciuber_driver_token');
+      localStorage.removeItem('biciuber_driver_id');
+      localStorage.removeItem('biciuber_driver_data');
+    }
     clearDriverSession();
     setActiveDriverRide(null);
     onLogout();
@@ -1490,8 +1516,30 @@ function DriverApp({ driver, onLogout }) {
       </div>
 
       <div style={{ padding: "10px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button className="btn" onClick={handleLogout} style={{ background: "transparent", color: C.textMuted, fontSize: 12, textDecoration: "underline", padding: 0 }}>
-          {t("signOut", { defaultValue: "Sair" })}
+        <button 
+          className="btn" 
+          onClick={() => {
+            if (window.confirm("Deseja realmente sair da sua conta de motorista?")) {
+              handleLogout();
+            }
+          }} 
+          style={{ 
+            background: "rgba(239, 68, 68, 0.12)", 
+            color: "#f87171", 
+            border: "1px solid rgba(239, 68, 68, 0.3)", 
+            fontSize: 12, 
+            fontWeight: 600, 
+            padding: "6px 12px", 
+            borderRadius: 8, 
+            display: "inline-flex", 
+            alignItems: "center", 
+            gap: 6 
+          }}
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Sair da Conta
         </button>
 
         {!checkingActiveRide && !activeDriverRide && (
@@ -1987,13 +2035,52 @@ function AdminApp() {
         p_admin_secret: adminSecret || 'biciadmin2026'
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro retornado pelo Supabase ao banir motorista:", error);
+        alert("Erro ao banir motorista: " + (error.message || error.details || JSON.stringify(error)));
+        return;
+      }
 
+      setDrivers(prev => prev.filter(d => d.id !== driver.id));
       alert(`Motorista ${driver.name} foi banido com sucesso.`);
       await fetchDrivers();
     } catch (err) {
       console.error("Erro ao banir motorista:", err);
-      alert("Erro ao banir motorista: " + err.message);
+      alert("Erro ao banir motorista: " + (err.message || err.details || JSON.stringify(err)));
+    } finally {
+      setActionLoading(prev => {
+        const next = { ...prev };
+        delete next[driver.id];
+        return next;
+      });
+    }
+  };
+
+  const handleDeleteDriver = async (driver) => {
+    if (!window.confirm("Tem certeza que deseja apagar este cadastro?")) {
+      return;
+    }
+
+    setActionLoading(prev => ({ ...prev, [driver.id]: 'delete' }));
+
+    try {
+      const { error } = await supabase.rpc('admin_delete_driver', {
+        p_driver_id: driver.id,
+        p_admin_secret: 'biciadmin2026'
+      });
+
+      if (error) {
+        console.error("Erro retornado pelo Supabase ao excluir motorista:", error);
+        alert("Erro ao excluir motorista: " + (error.message || error.details || JSON.stringify(error)));
+        return;
+      }
+
+      setDrivers(prev => prev.filter(d => d.id !== driver.id));
+      alert(`Cadastro de ${driver.name} excluído com sucesso.`);
+      await fetchDrivers();
+    } catch (err) {
+      console.error("Erro ao excluir motorista:", err);
+      alert("Erro ao excluir motorista: " + (err.message || err.details || JSON.stringify(err)));
     } finally {
       setActionLoading(prev => {
         const next = { ...prev };
@@ -2065,7 +2152,7 @@ function AdminApp() {
                   <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
                   <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate || "sem placa"} (Pendente)</p>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button 
                     className="btn" 
                     style={{ flex: 1, background: C.online, color: "#000" }} 
@@ -2081,6 +2168,14 @@ function AdminApp() {
                     disabled={!!actionLoading[d.id]}
                   >
                     {actionLoading[d.id] === 'reject' ? 'Rejeitando...' : 'Rejeitar'}
+                  </button>
+                  <button 
+                    className="btn" 
+                    style={{ flex: 1, background: "#dc2626", color: "#fff", border: "1px solid #b91c1c" }} 
+                    onClick={() => handleDeleteDriver(d)}
+                    disabled={!!actionLoading[d.id]}
+                  >
+                    {actionLoading[d.id] === 'delete' ? 'Excluindo...' : 'Excluir'}
                   </button>
                 </div>
               </div>
@@ -2101,10 +2196,10 @@ function AdminApp() {
                     Aprovado
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button 
                     className="btn" 
-                    style={{ flex: 1, background: "rgba(255, 255, 255, 0.08)", color: "#fff", border: `1px solid ${C.border}`, fontSize: 12, padding: "8px 10px" }}
+                    style={{ flex: "1 1 120px", background: "rgba(255, 255, 255, 0.08)", color: "#fff", border: `1px solid ${C.border}`, fontSize: 12, padding: "8px 10px" }}
                     onClick={() => handleResetPin(d)}
                     disabled={!!actionLoading[d.id]}
                   >
@@ -2112,11 +2207,19 @@ function AdminApp() {
                   </button>
                   <button 
                     className="btn" 
-                    style={{ flex: 1, background: "transparent", color: "var(--error)", border: "1px solid var(--error)", fontSize: 12, padding: "8px 10px" }}
+                    style={{ flex: "1 1 90px", background: "transparent", color: "var(--error)", border: "1px solid var(--error)", fontSize: 12, padding: "8px 10px" }}
                     onClick={() => handleBanDriver(d)}
                     disabled={!!actionLoading[d.id]}
                   >
                     {actionLoading[d.id] === 'ban' ? 'Banindo...' : 'Banir'}
+                  </button>
+                  <button 
+                    className="btn" 
+                    style={{ flex: "1 1 130px", background: "#dc2626", color: "#fff", border: "1px solid #b91c1c", fontWeight: 700, fontSize: 12, padding: "8px 10px" }}
+                    onClick={() => handleDeleteDriver(d)}
+                    disabled={!!actionLoading[d.id]}
+                  >
+                    {actionLoading[d.id] === 'delete' ? 'Excluindo...' : 'Excluir Motorista'}
                   </button>
                 </div>
               </div>
@@ -2127,9 +2230,19 @@ function AdminApp() {
                 <hr style={{ borderColor: C.border, width: "100%", margin: "10px 0" }} />
                 <h3 style={{ margin: 0, fontSize: 14, color: "var(--error)" }}>Motoristas Banidos</h3>
                 {drivers.filter(d => d.status === 'banned').map(d => (
-                  <div key={d.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, opacity: 0.75 }}>
-                    <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
-                    <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate || "sem placa"} (Banido)</p>
+                  <div key={d.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, opacity: 0.85, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
+                      <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate || "sem placa"} (Banido)</p>
+                    </div>
+                    <button 
+                      className="btn" 
+                      style={{ background: "#dc2626", color: "#fff", border: "1px solid #b91c1c", fontWeight: 700, fontSize: 12, padding: "6px 12px" }}
+                      onClick={() => handleDeleteDriver(d)}
+                      disabled={!!actionLoading[d.id]}
+                    >
+                      {actionLoading[d.id] === 'delete' ? 'Excluindo...' : 'Excluir Motorista'}
+                    </button>
                   </div>
                 ))}
               </>
@@ -2157,22 +2270,44 @@ function AdminApp() {
 
 // ---------------- ROOT ----------------
 export default function App() {
-  const initialDriver = getStoredDriverSession();
-  const [loggedDriver, setLoggedDriver] = useState(initialDriver);
-  const [view, setView] = useState(() => (initialDriver ? "driverApp" : "welcome"));
+  const [sessionToken, setSessionToken] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('biciuber_driver_token');
+    }
+    return null;
+  });
+
+  const [loggedDriver, setLoggedDriver] = useState(() => {
+    return getStoredDriverSession();
+  });
+
+  const [view, setView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('biciuber_driver_token');
+      if (token) {
+        return "driverApp";
+      }
+    }
+    return "welcome";
+  });
 
   // Sincronização entre abas
   useEffect(() => {
     const handleStorage = (event) => {
-      if (event.key === "biciuber-driver-session") {
+      if (
+        event.key === "biciuber_driver_token" ||
+        event.key === "biciuber-driver-session"
+      ) {
         if (!event.newValue) {
           // Logout ocorreu em outra aba
+          setSessionToken(null);
           setLoggedDriver(null);
           setView("driverLogin");
         } else {
           // Login ocorreu em outra aba
           const driver = getStoredDriverSession();
           if (driver) {
+            setSessionToken(driver.session_token);
             setLoggedDriver(driver);
             setView("driverApp");
           }
@@ -2184,13 +2319,26 @@ export default function App() {
   }, []);
 
   const handleDriverLoginSuccess = (driverData) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('biciuber_driver_token', driverData.session_token || driverData.sessionToken);
+      localStorage.setItem('biciuber_driver_id', driverData.driver_id || driverData.id);
+      localStorage.setItem('biciuber_driver_data', JSON.stringify(driverData));
+    }
     const sessionData = saveDriverSession(driverData);
-    setLoggedDriver(sessionData || driverData);
+    const finalDriver = sessionData || driverData;
+    setSessionToken(finalDriver.session_token || finalDriver.sessionToken);
+    setLoggedDriver(finalDriver);
     setView("driverApp");
   };
 
   const handleDriverLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('biciuber_driver_token');
+      localStorage.removeItem('biciuber_driver_id');
+      localStorage.removeItem('biciuber_driver_data');
+    }
     clearDriverSession();
+    setSessionToken(null);
     setLoggedDriver(null);
     setView("driverLogin");
   };
@@ -2211,8 +2359,10 @@ export default function App() {
           <WelcomeScreen
             onSelectPassenger={() => setView("passenger")}
             onSelectDriver={() => {
+              const token = typeof window !== 'undefined' ? localStorage.getItem('biciuber_driver_token') : null;
               const current = loggedDriver || getStoredDriverSession();
-              if (current) {
+              if (token && current) {
+                setSessionToken(token);
                 setLoggedDriver(current);
                 setView("driverApp");
               } else {
@@ -2230,9 +2380,9 @@ export default function App() {
             onLogin={handleDriverLoginSuccess} 
           />
         )}
-        {view === "driverApp" && loggedDriver && (
+        {view === "driverApp" && (loggedDriver || sessionToken) && (
           <DriverApp 
-            driver={loggedDriver} 
+            driver={loggedDriver || getStoredDriverSession()} 
             onLogout={handleDriverLogout} 
           />
         )}
