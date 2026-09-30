@@ -38,19 +38,14 @@ export function AvailableDrivers({ onBack, pickup, destination, count, hasLuggag
     };
 
     const driversSub = supabase
-      .channel("public:drivers-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "drivers" }, debouncedFetch)
-      .subscribe();
-
-    const ridesSub = supabase
-      .channel("public:rides-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "rides" }, debouncedFetch)
+      .channel("available-drivers-channel")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "drivers" }, debouncedFetch)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "drivers", filter: "is_available=eq.true" }, debouncedFetch)
       .subscribe();
 
     return () => {
       clearTimeout(timeoutId);
       supabase.removeChannel(driversSub);
-      supabase.removeChannel(ridesSub);
     };
   }, []);
 

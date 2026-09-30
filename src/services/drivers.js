@@ -11,39 +11,30 @@ import { supabase } from "../lib/supabaseClient";
  * @returns {Promise<Array>} Lista de motoristas disponíveis.
  */
 export async function getAvailableDrivers() {
-  // 1. Buscar todos os motoristas marcados como disponíveis (is_available = true)
-  const { data: drivers, error: driversError } = await supabase
-    .from("drivers")
-    .select("id, name, phone, plate, is_available")
-    .eq("is_available", true);
+  const { data, error } = await supabase.rpc("get_available_drivers");
 
-  if (driversError) {
-    console.error("Erro ao buscar motoristas disponíveis:", driversError);
-    throw driversError;
+  if (error) {
+    console.error("Erro ao buscar motoristas disponíveis via RPC:", error);
+    throw error;
   }
 
-  if (!drivers || drivers.length === 0) {
-    return [];
-  }
+  return data || [];
+}
 
-  const driverIds = drivers.map((d) => d.id);
+export async function driverLogin(phone, pin) {
+  const { data, error } = await supabase.rpc("driver_login", {
+    p_phone: phone,
+    p_pin: pin
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+}
 
-  // 2. Buscar todas as corridas ativas associadas a qualquer motorista da lista
-  const { data: activeRides, error: ridesError } = await supabase
-    .from("rides")
-    .select("driver_id, status")
-    .in("driver_id", driverIds)
-    .in("status", ["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"]);
-
-  if (ridesError) {
-    console.error("Erro ao buscar corridas ativas:", ridesError);
-    throw ridesError;
-  }
-
-  // 3. Filtrar os motoristas: manter apenas aqueles cujo ID não está na lista de corridas ativas
-  const busyDriverIds = new Set((activeRides || []).map((r) => r.driver_id));
-  
-  const trulyAvailableDrivers = drivers.filter((d) => !busyDriverIds.has(d.id));
-
-  return trulyAvailableDrivers;
+export async function adminApproveDriver(driverId, pin, adminSecret) {
+  const { error } = await supabase.rpc("admin_approve_driver", {
+    p_driver_id: driverId,
+    p_pin: pin,
+    p_admin_secret: adminSecret
+  });
+  if (error) throw error;
 }

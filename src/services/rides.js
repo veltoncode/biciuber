@@ -14,36 +14,30 @@ import { supabase } from "../lib/supabaseClient";
  * @returns {Promise<Object>} Dados da corrida inserida (id, public_tracking_token, status, created_at, expires_at)
  */
 export async function createRide(payload) {
-  const rideData = {
-    passenger_name: payload.passenger_name.trim(),
-    passenger_phone: payload.passenger_phone.trim(),
-    pickup_description: payload.pickup_description.trim(),
-    destination_description: payload.destination_description.trim(),
-    passenger_count: Number(payload.passenger_count),
-    has_luggage: Boolean(payload.has_luggage),
-    notes: payload.notes ? payload.notes.trim() : null,
-    status: "REQUESTED",
-  };
-
-  if (payload.pickup_lat !== undefined && payload.pickup_lat !== null) {
-    rideData.pickup_lat = payload.pickup_lat;
-  }
-  if (payload.pickup_lng !== undefined && payload.pickup_lng !== null) {
-    rideData.pickup_lng = payload.pickup_lng;
-  }
-
-  const { data, error } = await supabase
-    .from("rides")
-    .insert([rideData])
-    .select("id, public_tracking_token, status, created_at, expires_at, pickup_lat, pickup_lng")
-    .single();
+  const { data, error } = await supabase.rpc("create_ride", {
+    p_name: payload.passenger_name.trim(),
+    p_phone: payload.passenger_phone.trim(),
+    p_pickup: payload.pickup_description.trim(),
+    p_dest: payload.destination_description.trim(),
+    p_count: Number(payload.passenger_count),
+    p_luggage: Boolean(payload.has_luggage),
+    p_notes: payload.notes ? payload.notes.trim() : null,
+    p_lat: payload.pickup_lat !== undefined ? payload.pickup_lat : null,
+    p_lng: payload.pickup_lng !== undefined ? payload.pickup_lng : null
+  });
 
   if (error) {
-    console.error("Erro técnico ao executar INSERT em public.rides:", error);
+    console.error("Erro ao criar corrida via RPC:", error);
+    if (error.message && error.message.includes("BANNED")) {
+      const customErr = new Error("BANNED");
+      customErr.code = "BANNED";
+      throw customErr;
+    }
     throw error;
   }
 
-  return data;
+  const ride = Array.isArray(data) ? data[0] : data;
+  return ride;
 }
 
 /**
@@ -79,10 +73,10 @@ export async function getPendingRides() {
  * @param {string} driverId UUID do motorista
  * @returns {Promise<Object>} Dados da corrida aceita
  */
-export async function acceptRide(rideId, driverId) {
+export async function acceptRide(rideId, sessionToken) {
   const { data, error } = await supabase.rpc("accept_ride", {
     p_ride_id: rideId,
-    p_driver_id: driverId,
+    p_session_token: sessionToken
   });
 
   if (error) {
@@ -100,7 +94,6 @@ export async function acceptRide(rideId, driverId) {
     throw error;
   }
 
-  // A função SQL de retorno de tabela pode vir como array de 1 item
   const accepted = Array.isArray(data) ? data[0] : data;
   if (!accepted) {
     const customErr = new Error("RIDE_NOT_AVAILABLE");
@@ -111,13 +104,6 @@ export async function acceptRide(rideId, driverId) {
   return accepted;
 }
 
-/**
- * Cancela uma corrida solicitada utilizando a RPC cancel_ride no Supabase.
- *
- * @param {string} rideId UUID da corrida
- * @param {string} publicTrackingToken UUID do token de acompanhamento do passageiro
- * @returns {Promise<Object>} Dados da corrida cancelada (id, status, cancelled_at, driver_id)
- */
 export async function cancelRide(rideId, publicTrackingToken) {
   const { data, error } = await supabase.rpc("cancel_ride", {
     p_ride_id: rideId,
@@ -144,12 +130,6 @@ export async function cancelRide(rideId, publicTrackingToken) {
   return cancelled;
 }
 
-/**
- * Consulta a corrida ativa mais recente pertencente ao motorista no Supabase.
- *
- * @param {string} driverId UUID do motorista
- * @returns {Promise<Object|null>} Dados da corrida ativa ou null se não for encontrada
- */
 export async function getActiveRideForDriver(driverId) {
   if (!driverId) return null;
 
@@ -172,12 +152,6 @@ export async function getActiveRideForDriver(driverId) {
   return data || null;
 }
 
-/**
- * Consulta os dados públicos e seguros de um motorista específico.
- *
- * @param {string} driverId UUID do motorista
- * @returns {Promise<Object|null>} Dados do motorista
- */
 export async function getDriverById(driverId) {
   if (!driverId) return null;
 
@@ -195,19 +169,11 @@ export async function getDriverById(driverId) {
   return data || null;
 }
 
-/**
- * Atualiza o status da corrida (Passos do motorista).
- *
- * @param {string} rideId UUID da corrida
- * @param {string} driverId UUID do motorista
- * @param {string} newStatus Novo status (DRIVER_ARRIVING, DRIVER_ARRIVED, IN_PROGRESS, COMPLETED)
- * @returns {Promise<Object>} Dados atualizados da corrida
- */
-export async function updateRideStatus(rideId, driverId, newStatus) {
+export async function updateRideStatus(rideId, newStatus, sessionToken) {
   const { data, error } = await supabase.rpc("update_driver_ride_status", {
     p_ride_id: rideId,
-    p_driver_id: driverId,
     p_new_status: newStatus,
+    p_session_token: sessionToken
   });
 
   if (error) {

@@ -14,6 +14,7 @@ import {
   subscribeToDriverRide,
   subscribeToDriverStatus
 } from "./services/rides.js";
+import { driverLogin, adminApproveDriver } from "./services/drivers.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
@@ -411,8 +412,7 @@ function PassengerApp({ onBack }) {
       setActiveRide(activeData);
       setStage("requested");
     } catch (err) {
-      console.error("Erro técnico ao criar corrida:", err);
-      setErrorMsg(t("errorCreateRideFailed", { defaultValue: "Não foi possível solicitar o bicitáxi. Tente novamente." }));
+      console.error("Erro técnico ao criar corrida:", err); if (err.code === "BANNED") { setErrorMsg("Você está bloqueado temporariamente por excesso de cancelamentos."); } else { setErrorMsg("Não foi possível solicitar o bicitáxi. Tente novamente."); }
     } finally {
       setSubmitting(false);
     }
@@ -869,47 +869,117 @@ function PassengerApp({ onBack }) {
 function DriverLogin({ onLogin, onBack }) {
   const { t } = useTranslation();
   const [phone, setPhone] = useState("");
+  const [pin, setPin] = useState("");
+  const [name, setName] = useState("");
+  const [plate, setPlate] = useState("");
+  const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   const tryLogin = async () => {
-    unlockAudio();
     setLoading(true);
     setError("");
-    const digits = onlyDigits(phone);
-    const { data, error: err } = await supabase
-      .from("drivers")
-      .select("*")
-      .eq("phone", digits)
-      .maybeSingle();
-    setLoading(false);
-    if (err) {
-      setError("Erro ao conectar. Confira sua internet e tente de novo.");
-      return;
-    }
-    if (data) {
-      onLogin(data);
-    } else {
-      setError("Telefone não encontrado. Fale com o administrador pra ser cadastrado.");
+    try {
+      const data = await driverLogin(phone, pin);
+      setLoading(false);
+      onLogin({
+        id: data.driver_id,
+        name: data.name,
+        plate: data.plate,
+        sessionToken: data.session_token
+      });
+    } catch (err) {
+      setLoading(false);
+      if (err.message.includes("DRIVER_NOT_FOUND")) {
+        setError("Telefone não encontrado.");
+      } else if (err.message.includes("DRIVER_NOT_APPROVED")) {
+        setError("Seu cadastro está pendente ou foi rejeitado. Fale com o administrador.");
+      } else if (err.message.includes("INVALID_PIN")) {
+        setError("PIN inválido.");
+      } else {
+        setError("Erro ao fazer login: " + err.message);
+      }
     }
   };
 
+  const tryRegister = async () => {
+    setLoading(true);
+    setError("");
+    const digits = onlyDigits(phone);
+    const { error: err } = await supabase
+      .from("drivers")
+      .insert({ name, phone: digits, plate: plate || null, status: 'pending' });
+    setLoading(false);
+    if (err) {
+      setError(err.code === "23505" ? "Esse telefone já está cadastrado." : `Erro ao cadastrar: ${err.message} / ${err.details || err.code}`);
+      return;
+    }
+    setRegistered(true);
+  };
+
+  if (registered) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
+        <TopBar subtitle="Cadastro Recebido" onBack={onBack} />
+        <div style={{ flex: 1, padding: 20, textAlign: "center", display: "flex", flexDirection: "column", gap: 14 }}>
+          <h2 style={{ color: "#fff", marginTop: 40 }}>Cadastro em Análise</h2>
+          <p style={{ color: C.textMuted }}>Seu cadastro foi enviado e está pendente de aprovação pelo administrador da comunidade.</p>
+          <p style={{ color: C.textMuted }}>Ao ser aprovado, você receberá um PIN de acesso.</p>
+          <Button onClick={onBack}>Voltar ao Início</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
-      <TopBar subtitle="Bicitaxista" onBack={onBack} backLabel={t("back", { defaultValue: "Voltar" })} />
+      <TopBar subtitle={step === 3 ? "Cadastro" : "Bicitaxista"} onBack={step === 1 ? onBack : () => setStep(1)} backLabel={t("back", { defaultValue: "Voltar" })} />
       <div style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
         <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
-          Entre com o telefone que foi cadastrado pelo administrador.
+          {step === 1 ? "Entre com o telefone cadastrado." : step === 2 ? "Insira o PIN fornecido pelo administrador." : "Preencha seus dados para solicitar acesso."}
         </p>
-        <input
-          style={inputStyle}
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Ex: 91 98111-2222"
-          inputMode="tel"
-        />
-        {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
-        <Button onClick={tryLogin} disabled={!phone || loading}>{loading ? "Entrando..." : "Entrar"}</Button>
+        
+        {step === 1 && (
+          <>
+            <input
+              style={inputStyle}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Ex: 91 98111-2222"
+              inputMode="tel"
+            />
+            <Button onClick={() => setStep(2)} disabled={!phone}>Próximo</Button>
+            <button className="btn" onClick={() => setStep(3)} style={{ background: "transparent", color: C.primary, textDecoration: "underline", padding: 8, marginTop: 10 }}>
+              Não tenho cadastro
+            </button>
+          </>
+        )}
+        
+        {step === 2 && (
+          <>
+            <input
+              style={inputStyle}
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="Ex: 1234"
+              inputMode="numeric"
+              maxLength={6}
+            />
+            {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
+            <Button onClick={tryLogin} disabled={!pin || loading}>{loading ? "Entrando..." : "Entrar"}</Button>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome completo" />
+            <input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefone (só números)" inputMode="tel" />
+            <input style={inputStyle} value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="Identificação do quadriciclo (opcional)" />
+            {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
+            <Button onClick={tryRegister} disabled={!name || !phone || loading}>{loading ? "Enviando..." : "Solicitar Cadastro"}</Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1194,7 +1264,7 @@ function DriverApp({ driver, onLogout }) {
 
     setUpdatingStatus(true);
     try {
-      const updatedRide = await updateRideStatus(activeDriverRide.id, driver.id, newStatus);
+      const updatedRide = await updateRideStatus(activeDriverRide.id, newStatus, driver.sessionToken);
       if (updatedRide.status === "COMPLETED") {
         setActiveDriverRide(null);
         alert(t("rideCompletedSuccess", { defaultValue: "Corrida concluída com sucesso." }));
@@ -1245,26 +1315,55 @@ function DriverApp({ driver, onLogout }) {
     const channel = createRideLocationChannel(activeDriverRide.id);
     gpsChannel.current = channel;
 
+    const getDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371e3;
+      const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+      const dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
+      const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    };
+    
+    let lastValidPos = null;
+
     channel.subscribe(async (status, error) => {
       console.log("[GPS DRIVER] subscription:", status, error);
       if (status === 'SUBSCRIBED') {
         console.log("[GPS DRIVER] watchPosition iniciou");
         watchId.current = navigator.geolocation.watchPosition(
           async (position) => {
-            setGpsStatus("sharing");
+            const acc = position.coords.accuracy;
+            // 1. Ignorar se precisão for muito ruim (ruído intenso do aparelho)
+            if (acc > 50) return;
+
             const now = Date.now();
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            // 2. Filtro de Ruído (Pulos bruscos de sinal)
+            if (lastValidPos) {
+              const dt = (now - lastValidPos.time) / 1000;
+              const dist = getDistance(lastValidPos.lat, lastValidPos.lng, lat, lng);
+              
+              if (dt > 0) {
+                const speed = dist / dt; // m/s
+                // Se a velocidade for > 10 m/s (36 km/h) no bicitáxi, é ruído
+                if (speed > 10) {
+                  console.warn("[GPS DRIVER] Posição ignorada devido a salto irreal:", { speed, dist, dt });
+                  return;
+                }
+              }
+            }
+
+            lastValidPos = { lat, lng, time: now };
+            setGpsStatus("sharing");
+
             // Throttle: 1 envio a cada 2s
             if (now - lastGpsEmit.current >= 2000) {
               lastGpsEmit.current = now;
-              console.log("[GPS DRIVER] posição obtida:", {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy
-              });
               const result = await broadcastDriverLocation(gpsChannel.current, {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
+                latitude: lat,
+                longitude: lng,
+                accuracy: acc,
                 timestamp: position.timestamp
               });
               console.log("[GPS DRIVER] broadcast result:", result);
@@ -1323,7 +1422,7 @@ function DriverApp({ driver, onLogout }) {
     setErrorMsg("");
 
     try {
-      const acceptedRide = await acceptRide(rideToAccept.id, driver.id);
+      const acceptedRide = await acceptRide(rideToAccept.id, driver.sessionToken);
 
       // Manter corrida aceita apenas no estado React (sem salvar em localStorage)
       setActiveDriverRide(acceptedRide);
@@ -1720,21 +1819,16 @@ function DriverApp({ driver, onLogout }) {
 
 // ---------------- ADMIN ----------------
 function AdminLogin({ onLoggedIn }) {
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const login = async () => {
-    setLoading(true);
+  const login = () => {
     setError("");
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (err) {
-      setError("E-mail ou senha incorretos.");
-      return;
+    if (password === "biciadmin2026") {
+      onLoggedIn(password);
+    } else {
+      setError("Senha incorreta.");
     }
-    onLoggedIn();
   };
 
   return (
@@ -1742,121 +1836,122 @@ function AdminLogin({ onLoggedIn }) {
       <TopBar subtitle="Administrador" />
       <div style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
         <p style={{ color: C.textMuted, fontSize: 13.5, margin: 0 }}>
-          Entre com sua conta de administrador pra cadastrar bicitaxistas.
+          Entre com a senha de administrador.
         </p>
-        <input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" type="email" />
         <input style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" type="password" />
         {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
-        <Button onClick={login} disabled={!email || !password || loading}>{loading ? "Entrando..." : "Entrar"}</Button>
+        <Button onClick={login} disabled={!password}>Entrar</Button>
       </div>
     </div>
   );
 }
 
 function AdminApp() {
-  const [session, setSession] = useState(undefined); // undefined = carregando, null = deslogado
+  const [adminSecret, setAdminSecret] = useState(null);
+  const [tab, setTab] = useState("drivers");
   const [drivers, setDrivers] = useState([]);
+  const [banned, setBanned] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [plate, setPlate] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  const [generatedPin, setGeneratedPin] = useState(null);
 
   const fetchDrivers = async () => {
-    const { data, error: err } = await supabase.from("drivers").select("*").order("created_at");
-    if (!err) setDrivers(data || []);
+    const { data } = await supabase.from("drivers").select("*").order("created_at");
+    setDrivers(data || []);
     setLoading(false);
   };
 
+  const fetchBanned = async () => {
+    const { data } = await supabase.from("passenger_bans").select("*");
+    setBanned(data || []);
+  };
+
   useEffect(() => {
-    if (!session) return;
+    if (!adminSecret) return;
     fetchDrivers();
-    const channel = supabase
-      .channel("drivers-admin")
-      .on("postgres_changes", { event: "*", schema: "public", table: "drivers" }, fetchDrivers)
-      .subscribe();
-    return () => supabase.removeChannel(channel);
-  }, [session]);
+    fetchBanned();
+    const subD = supabase.channel("drivers-admin").on("postgres_changes", { event: "*", schema: "public", table: "drivers" }, fetchDrivers).subscribe();
+    const subB = supabase.channel("bans-admin").on("postgres_changes", { event: "*", schema: "public", table: "passenger_bans" }, fetchBanned).subscribe();
+    return () => { supabase.removeChannel(subD); supabase.removeChannel(subB); };
+  }, [adminSecret]);
 
-  const addDriver = async () => {
-    if (!name || !phone) return;
-    setError("");
-    const digits = onlyDigits(phone);
-    const { error: err } = await supabase
-      .from("drivers")
-      .insert({ name, phone: digits, plate: plate || null });
-    if (err) {
-      setError(err.code === "23505" ? "Esse telefone já está cadastrado." : "Erro ao cadastrar. Tente de novo.");
-      return;
-    }
-    setName(""); setPhone(""); setPlate("");
-    fetchDrivers();
-  };
-
-  const removeDriver = async (id) => {
-    if (!window.confirm("Tem certeza que deseja remover este bicitaxista?")) return;
-    const { error: err } = await supabase.from("drivers").delete().eq("id", id);
-    if (err) {
-      alert("Erro ao remover: " + err.message);
-    } else {
-      fetchDrivers();
+  const handleApprove = async (d) => {
+    const pin = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+    try {
+      await adminApproveDriver(d.id, pin, adminSecret);
+      setGeneratedPin({ name: d.name, pin });
+    } catch (err) {
+      alert("Erro ao aprovar: " + err.message);
     }
   };
 
-  if (session === undefined) {
-    return (
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
-        <TopBar subtitle="Administrador" />
-      </div>
-    );
-  }
+  const handleReject = async (d) => {
+    if (!window.confirm("Rejeitar cadastro de " + d.name + "?")) return;
+    await supabase.from("drivers").update({ status: 'rejected' }).eq("id", d.id);
+  };
 
-  if (!session) {
-    return <AdminLogin onLoggedIn={() => {}} />;
-  }
+  const unban = async (phone) => {
+    if (!window.confirm("Desbanir este telefone?")) return;
+    await supabase.from("passenger_bans").delete().eq("phone", phone);
+  };
+
+  if (!adminSecret) return <AdminLogin onLoggedIn={setAdminSecret} />;
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
       <TopBar subtitle="Administrador" />
-      <div style={{ padding: "10px 20px 0" }}>
-        <button className="btn" onClick={() => supabase.auth.signOut()} style={{ background: "transparent", color: "var(--error)", fontSize: 13, textDecoration: "underline", padding: 0 }}>
-          Sair
-        </button>
+      <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
+        <button style={{ flex: 1, padding: 12, background: tab==="drivers" ? C.surface : "transparent", color: tab==="drivers" ? "#fff" : C.textMuted, border: "none", fontWeight: 700 }} onClick={() => setTab("drivers")}>Motoristas</button>
+        <button style={{ flex: 1, padding: 12, background: tab==="bans" ? C.surface : "transparent", color: tab==="bans" ? "#fff" : C.textMuted, border: "none", fontWeight: 700 }} onClick={() => setTab("bans")}>Banidos</button>
       </div>
 
       <div style={{ flex: 1, padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>Cadastrar bicitaxista</p>
-          <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome completo" />
-          <input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefone (só números)" inputMode="tel" />
-          <input style={inputStyle} value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="Identificação do quadriciclo (opcional)" />
-          {error && <p style={{ color: "var(--error)", fontSize: 12.5, margin: 0 }}>{error}</p>}
-          <Button onClick={addDriver} disabled={!name || !phone}>Cadastrar</Button>
-        </div>
+        {generatedPin && (
+          <div style={{ background: C.online, padding: 16, borderRadius: 12, color: "#000", fontWeight: "bold" }}>
+            Cadastro de {generatedPin.name} aprovado!<br/>
+            Envie este PIN para ele: <span style={{ fontSize: 24, letterSpacing: 2 }}>{generatedPin.pin}</span>
+            <button className="btn" style={{ background: "#000", color: "#fff", marginTop: 10, width: "100%" }} onClick={() => setGeneratedPin(null)}>Fechar</button>
+          </div>
+        )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>
-            Bicitaxistas cadastrados {loading ? "" : `(${drivers.length})`}
-          </p>
-          {loading && <p style={{ color: C.textMuted, fontSize: 13 }}>Carregando...</p>}
-          {drivers.map((d) => (
-            <div key={d.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
-                <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} · {d.plate || "sem identificação"}</p>
+        {tab === "drivers" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {loading && <p style={{ color: C.textMuted, fontSize: 13 }}>Carregando...</p>}
+            {drivers.filter(d => d.status === 'pending').map(d => (
+              <div key={d.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
+                  <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate || "sem placa"} (Pendente)</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn" style={{ flex: 1, background: C.online, color: "#000" }} onClick={() => handleApprove(d)}>Aprovar</button>
+                  <button className="btn" style={{ flex: 1, background: "transparent", color: "var(--error)", border: "1px solid var(--error)" }} onClick={() => handleReject(d)}>Rejeitar</button>
+                </div>
               </div>
-              <button className="btn" onClick={() => removeDriver(d.id)} style={{ background: "transparent", color: "var(--error)", fontSize: 12, padding: "4px 8px" }}>
-                remover
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+            <hr style={{ borderColor: C.border, width: "100%", margin: "10px 0" }} />
+            <h3 style={{ margin: 0, fontSize: 14 }}>Aprovados</h3>
+            {drivers.filter(d => d.status === 'approved').map(d => (
+              <div key={d.id} style={{ padding: 12, borderBottom: `1px solid ${C.border}` }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>{d.name}</p>
+                <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>{d.phone} | {d.plate}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "bans" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {banned.length === 0 && <p style={{ color: C.textMuted }}>Nenhum passageiro banido.</p>}
+            {banned.map(b => (
+              <div key={b.phone} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>Passageiro: {b.phone}</p>
+                <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>Motivo: {b.reason}</p>
+                <p style={{ margin: 0, fontSize: 11.5, color: "var(--error)" }}>Até: {new Date(b.banned_until).toLocaleString()}</p>
+                <button className="btn" style={{ marginTop: 8, width: "100%" }} onClick={() => unban(b.phone)}>Desbanir</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1928,3 +2023,4 @@ export default function App() {
     </>
   );
 }
+

@@ -135,7 +135,7 @@ BEGIN
     NEW.updated_at = now();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS update_rides_updated_at ON public.rides;
 CREATE TRIGGER update_rides_updated_at
@@ -211,4 +211,4 @@ BEGIN
     status = 'REQUESTED'
     AND expires_at <= now();
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER;
