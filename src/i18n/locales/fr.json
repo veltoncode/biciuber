@@ -132,5 +132,8 @@
   "backToRequestRide": "Retourner et demander un bicitaxi",
   "availableNow": "Disponible maintenant",
   "call": "Appeler",
-  "whatsapp": "WhatsApp"
+  "whatsapp": "WhatsApp",
+  "chatOnWhatsApp": "Discuter sur WhatsApp",
+  "refreshList": "Actualiser la liste",
+  "refreshing": "Actualisation..."
 }

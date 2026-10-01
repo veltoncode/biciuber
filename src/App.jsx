@@ -1045,6 +1045,48 @@ function DriverApp({ driver, onLogout }) {
     setSoundEnabled(newVal);
   };
 
+  // Sincroniza disponibilidade inicial do motorista diretamente da base
+  useEffect(() => {
+    if (driver?.id) {
+      supabase
+        .from("drivers")
+        .select("is_available")
+        .eq("id", driver.id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!error && data && typeof data.is_available === "boolean") {
+            setAvailable(data.is_available);
+          }
+        });
+    }
+  }, [driver?.id]);
+
+  const handleToggleAvailability = async () => {
+    const previousState = available;
+    const novoStatusBoolean = !previousState;
+
+    // Alterne o estado local visual imediatamente (Disponível = verde / Indisponível = cinza ou vermelho)
+    setAvailable(novoStatusBoolean);
+
+    try {
+      // Recupere o 'biciuber_driver_token' salvo no localStorage
+      const sessionToken = (typeof window !== "undefined" ? localStorage.getItem("biciuber_driver_token") : null) || driver?.sessionToken;
+
+      const { data, error } = await supabase.rpc("set_driver_availability", {
+        p_session_token: sessionToken,
+        p_is_available: novoStatusBoolean
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (err) {
+      // Se ocorrer erro, reverta o estado visual e exiba o erro no console
+      console.error("Erro ao alterar disponibilidade do motorista:", err);
+      setAvailable(previousState);
+    }
+  };
+
   const loadPendingRides = async (isManualRefresh = false) => {
     if (isManualRefresh) {
       setRefreshing(true);
@@ -1502,7 +1544,21 @@ function DriverApp({ driver, onLogout }) {
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h2.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd"></path><path strokeLinecap="round" strokeLinejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
             )}
           </button>
-          <button className="btn" onClick={() => setAvailable((a) => !a)} style={{ padding: "8px 16px", borderRadius: 999, background: available ? C.online : C.surfaceAlt, color: available ? "#000" : C.textMuted, fontWeight: 700, fontSize: 12.5 }}>
+          <button 
+            className="btn" 
+            onClick={handleToggleAvailability} 
+            style={{ 
+              padding: "8px 16px", 
+              borderRadius: 999, 
+              background: available ? C.online : "rgba(239, 68, 68, 0.15)", 
+              color: available ? "#000" : "#f87171", 
+              border: available ? `1px solid ${C.online}` : "1px solid rgba(239, 68, 68, 0.4)", 
+              fontWeight: 700, 
+              fontSize: 12.5,
+              cursor: "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
             {available ? "Disponível" : "Indisponível"}
           </button>
         </div>

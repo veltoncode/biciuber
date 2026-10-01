@@ -11,10 +11,15 @@ import { supabase } from "../lib/supabaseClient";
  * @returns {Promise<Array>} Lista de motoristas disponíveis.
  */
 export async function getAvailableDrivers() {
-  const { data, error } = await supabase.rpc("get_available_drivers");
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("id, name, phone, vehicle_type, is_available")
+    .eq("status", "approved")
+    .eq("is_available", true)
+    .order("name");
 
   if (error) {
-    console.error("Erro ao buscar motoristas disponíveis via RPC:", error);
+    console.error("Erro ao buscar motoristas disponíveis:", error);
     throw error;
   }
 
