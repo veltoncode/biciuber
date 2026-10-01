@@ -18,6 +18,7 @@ import { driverLogin, adminApproveDriver } from "./services/drivers.js";
 import { getStoredDriverSession, saveDriverSession, clearDriverSession } from "./services/driverAuth.js";
 import BicitaxiIcon from "./components/BicitaxiIcon.jsx";
 import WelcomeScreen from "./components/WelcomeScreen.jsx";
+import LandingPage from "./components/LandingPage.jsx";
 import AppAlertBanner from "./components/AppAlertBanner.jsx";
 import PushSubscribeCard from "./components/PushSubscribeCard.jsx";
 import { playAlertSound, vibrateAlert, unlockAudio, canPlaySound, toggleSoundPref } from "./services/appAlerts.js";
@@ -25,6 +26,7 @@ import { unsubscribeFromPush, isPushSupported, getNotificationPermission, regist
 import { createRideLocationChannel, broadcastDriverLocation, subscribeToDriverLocation, removeRideLocationChannel } from "./services/rideLocation.js";
 import RideMap from "./components/RideMap.jsx";
 import { AvailableDrivers } from "./components/passenger/AvailableDrivers.jsx";
+import LanguageSelector from "./components/LanguageSelector.jsx";
 
 const C = {
   bg: "var(--background)",
@@ -63,9 +65,9 @@ function Logo({ size = 40 }) {
   );
 }
 
-function TopBar({ subtitle, onBack, backLabel }) {
+function TopBar({ subtitle, onBack, backLabel, rightContent }) {
   return (
-    <div style={{ padding: "22px 20px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ padding: "18px 20px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.border}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <Logo size={36} />
         <div>
@@ -73,11 +75,14 @@ function TopBar({ subtitle, onBack, backLabel }) {
           <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: -0.3 }}>BiciTaxi</h1>
         </div>
       </div>
-      {onBack && (
-        <button className="btn" onClick={onBack} style={{ background: "transparent", color: C.textMuted, fontSize: 13, textDecoration: "underline", padding: "8px 0" }}>
-          {backLabel || "Voltar"}
-        </button>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {rightContent}
+        {onBack && (
+          <button className="btn" onClick={onBack} style={{ background: "transparent", color: C.textMuted, fontSize: 13, textDecoration: "underline", padding: "8px 0" }}>
+            {backLabel || "Voltar"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -182,7 +187,7 @@ function sanitizeE164(ddi, rawPhone) {
 }
 
 // ---------------- PASSENGER ----------------
-function PassengerApp({ onBack }) {
+function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
   const { t } = useTranslation();
   const [stage, setStage] = useState("choice"); // "choice" | "form" | "requested" | "available_drivers"
   const [submitting, setSubmitting] = useState(false);
@@ -512,8 +517,40 @@ function PassengerApp({ onBack }) {
       />
       <TopBar 
         subtitle="Passageiro" 
-        onBack={!activeRide ? (stage === "choice" ? onBack : () => setStage("choice")) : undefined} 
-        backLabel={t("back", { defaultValue: "Voltar" })} 
+        onBack={!activeRide ? (stage !== "choice" ? () => setStage("choice") : (onNavigateToHome ? () => onNavigateToHome() : undefined)) : undefined} 
+        backLabel={stage !== "choice" ? t("back", { defaultValue: "Voltar" }) : "Início"} 
+        rightContent={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LanguageSelector />
+            {!activeRide && stage === "choice" && (
+              <a
+                href="/motorista"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigateToDriver();
+                }}
+                style={{
+                  color: C.textMuted,
+                  fontSize: 11.5,
+                  textDecoration: "none",
+                  padding: "5px 10px",
+                  borderRadius: 8,
+                  border: `1px solid ${C.border}`,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+                title={t("driverArea", { defaultValue: "Área do Condutor" })}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="7" r="4" />
+                  <path d="M5 21v-2.5A5.5 5.5 0 0 1 10.5 13h3A5.5 5.5 0 0 1 19 18.5V21" />
+                </svg>
+                <span>{t("driverArea", { defaultValue: "Área do Condutor" })}</span>
+              </a>
+            )}
+          </div>
+        }
       />
       {liveStatus && (
         <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
@@ -864,6 +901,58 @@ function PassengerApp({ onBack }) {
           </div>
         )}
       </div>
+      {!activeRide && (
+        <footer style={{ padding: "16px 20px 24px", textAlign: "center", borderTop: `1px solid ${C.border}`, background: C.bg, display: "flex", justifyContent: "center", alignItems: "center", gap: 20 }}>
+          {onNavigateToHome && (
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigateToHome();
+              }}
+              style={{
+                color: C.textMuted,
+                fontSize: 12.5,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                opacity: 0.8,
+                transition: "opacity 0.2s"
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = "0.8"}
+            >
+              <span>← Início</span>
+            </a>
+          )}
+          <a
+            href="/motorista"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigateToDriver();
+            }}
+            style={{
+              color: C.textMuted,
+              fontSize: 12.5,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              opacity: 0.8,
+              transition: "opacity 0.2s"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = "0.8"}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="7" r="4" />
+              <path d="M5 21v-2.5A5.5 5.5 0 0 1 10.5 13h3A5.5 5.5 0 0 1 19 18.5V21" />
+            </svg>
+            <span>{t("driverArea", { defaultValue: "Área do Condutor" })}</span>
+          </a>
+        </footer>
+      )}
     </div>
   );
 }
@@ -977,6 +1066,28 @@ function DriverLogin({ onLogin, onBack }) {
             <button className="btn" onClick={() => setStep(3)} style={{ background: "transparent", color: C.primary, textDecoration: "underline", padding: 8, marginTop: 10 }}>
               Não tenho cadastro
             </button>
+            {onBack && (
+              <a
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onBack();
+                }}
+                style={{
+                  color: C.textMuted,
+                  fontSize: 12.5,
+                  textDecoration: "none",
+                  textAlign: "center",
+                  marginTop: 18,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6
+                }}
+              >
+                ← Voltar para Área do Passageiro
+              </a>
+            )}
           </>
         )}
         
@@ -1974,6 +2085,7 @@ function AdminApp() {
   const [drivers, setDrivers] = useState([]);
   const [banned, setBanned] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingBans, setLoadingBans] = useState(false);
   const [generatedPin, setGeneratedPin] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
 
@@ -2010,8 +2122,16 @@ function AdminApp() {
   };
 
   const fetchBanned = async () => {
-    const { data } = await supabase.from("passenger_bans").select("*");
+    setLoadingBans(true);
+    const { data, error } = await supabase
+      .from('passenger_bans')
+      .select('*')
+      .order('banned_until', { ascending: false });
+    if (error) {
+      console.error("Erro ao buscar passageiros bloqueados:", error);
+    }
     setBanned(data || []);
+    setLoadingBans(false);
   };
 
   useEffect(() => {
@@ -2022,6 +2142,12 @@ function AdminApp() {
     const subB = supabase.channel("bans-admin").on("postgres_changes", { event: "*", schema: "public", table: "passenger_bans" }, fetchBanned).subscribe();
     return () => { supabase.removeChannel(subD); supabase.removeChannel(subB); };
   }, [adminUser]);
+
+  useEffect(() => {
+    if (adminUser && tab === "blocked_passengers") {
+      fetchBanned();
+    }
+  }, [tab, adminUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -2165,9 +2291,45 @@ function AdminApp() {
     }
   };
 
-  const unban = async (phone) => {
-    if (!window.confirm("Desbanir este telefone?")) return;
-    await supabase.from("passenger_bans").delete().eq("phone", phone);
+  const handleUnbanPassenger = async (phone) => {
+    if (!window.confirm(`Tem certeza que deseja desbloquear o passageiro ${phone}?`)) {
+      return;
+    }
+    setActionLoading(prev => ({ ...prev, [`unban_${phone}`]: true }));
+    try {
+      const { error } = await supabase.from('passenger_bans').delete().eq('phone', phone);
+      if (error) {
+        console.error("Erro ao desbloquear passageiro:", error);
+        alert("Erro ao desbloquear passageiro: " + (error.message || JSON.stringify(error)));
+        return;
+      }
+      setBanned(prev => prev.filter(b => b.phone !== phone));
+    } catch (err) {
+      console.error("Erro ao desbloquear passageiro:", err);
+      alert("Erro ao desbloquear passageiro: " + err.message);
+    } finally {
+      setActionLoading(prev => {
+        const next = { ...prev };
+        delete next[`unban_${phone}`];
+        return next;
+      });
+    }
+  };
+
+  const formatBanDate = (dateStr) => {
+    if (!dateStr) return "Indeterminado";
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   if (checkingAuth) {
@@ -2185,9 +2347,80 @@ function AdminApp() {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: C.bg }}>
       <TopBar subtitle="Administrador" onBack={handleLogout} backLabel="Sair" />
-      <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
-        <button style={{ flex: 1, padding: 12, background: tab==="drivers" ? C.surface : "transparent", color: tab==="drivers" ? "#fff" : C.textMuted, border: "none", fontWeight: 700 }} onClick={() => setTab("drivers")}>Motoristas</button>
-        <button style={{ flex: 1, padding: 12, background: tab==="bans" ? C.surface : "transparent", color: tab==="bans" ? "#fff" : C.textMuted, border: "none", fontWeight: 700 }} onClick={() => setTab("bans")}>Banidos</button>
+      
+      {/* SEPARADORES (TABS) */}
+      <div style={{ display: "flex", background: "rgba(0, 0, 0, 0.3)", borderBottom: `1px solid ${C.border}` }}>
+        <button
+          style={{
+            flex: 1,
+            padding: "14px 16px",
+            background: tab === "drivers" ? "rgba(34, 197, 94, 0.08)" : "transparent",
+            color: tab === "drivers" ? "#fff" : C.textMuted,
+            border: "none",
+            borderBottom: tab === "drivers" ? `3px solid ${C.primary}` : "3px solid transparent",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            transition: "all 0.2s ease"
+          }}
+          onClick={() => setTab("drivers")}
+        >
+          <span>Condutores</span>
+          {drivers.length > 0 && (
+            <span
+              style={{
+                fontSize: 11,
+                background: tab === "drivers" ? C.primary : "rgba(255, 255, 255, 0.1)",
+                color: tab === "drivers" ? "#000" : C.textMuted,
+                padding: "2px 7px",
+                borderRadius: 10,
+                fontWeight: 700
+              }}
+            >
+              {drivers.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          style={{
+            flex: 1,
+            padding: "14px 16px",
+            background: tab === "blocked_passengers" ? "rgba(34, 197, 94, 0.08)" : "transparent",
+            color: tab === "blocked_passengers" ? "#fff" : C.textMuted,
+            border: "none",
+            borderBottom: tab === "blocked_passengers" ? `3px solid ${C.primary}` : "3px solid transparent",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            transition: "all 0.2s ease"
+          }}
+          onClick={() => setTab("blocked_passengers")}
+        >
+          <span>Passageiros Bloqueados</span>
+          {banned.length > 0 && (
+            <span
+              style={{
+                fontSize: 11,
+                background: tab === "blocked_passengers" ? "var(--error)" : "rgba(255, 255, 255, 0.1)",
+                color: "#fff",
+                padding: "2px 7px",
+                borderRadius: 10,
+                fontWeight: 700
+              }}
+            >
+              {banned.length}
+            </span>
+          )}
+        </button>
       </div>
 
       <div style={{ flex: 1, padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -2199,6 +2432,7 @@ function AdminApp() {
           </div>
         )}
 
+        {/* TAB 1: CONDUTORES */}
         {tab === "drivers" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {loading && <p style={{ color: C.textMuted, fontSize: 13 }}>Carregando...</p>}
@@ -2306,17 +2540,142 @@ function AdminApp() {
           </div>
         )}
 
-        {tab === "bans" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {banned.length === 0 && <p style={{ color: C.textMuted }}>Nenhum passageiro banido.</p>}
-            {banned.map(b => (
-              <div key={b.phone} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: 13.5 }}>Passageiro: {b.phone}</p>
-                <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>Motivo: {b.reason}</p>
-                <p style={{ margin: 0, fontSize: 11.5, color: "var(--error)" }}>Até: {new Date(b.banned_until).toLocaleString()}</p>
-                <button className="btn" style={{ marginTop: 8, width: "100%" }} onClick={() => unban(b.phone)}>Desbanir</button>
+        {/* TAB 2: PASSAGEIROS BLOQUEADOS */}
+        {tab === "blocked_passengers" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#fff" }}>
+                Passageiros Bloqueados ({banned.length})
+              </h3>
+              <button
+                onClick={fetchBanned}
+                disabled={loadingBans}
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  color: C.textMuted,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+                <span>{loadingBans ? "Atualizando..." : "Atualizar"}</span>
+              </button>
+            </div>
+
+            {loadingBans && banned.length === 0 && (
+              <p style={{ color: C.textMuted, fontSize: 13, margin: "12px 0" }}>Carregando passageiros bloqueados...</p>
+            )}
+
+            {!loadingBans && banned.length === 0 && (
+              <div style={{
+                background: C.surface,
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                padding: "32px 20px",
+                textAlign: "center"
+              }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+                <p style={{ margin: 0, fontWeight: 600, color: "#fff", fontSize: 14 }}>
+                  Nenhum passageiro bloqueado
+                </p>
+                <p style={{ margin: "4px 0 0", color: C.textMuted, fontSize: 12 }}>
+                  Todos os passageiros estão livres de restrições temporárias ou bloqueios.
+                </p>
               </div>
-            ))}
+            )}
+
+            {banned.map((b) => {
+              const isExpired = b.banned_until ? new Date(b.banned_until) < new Date() : false;
+              const isUnbanning = !!actionLoading[`unban_${b.phone}`];
+
+              return (
+                <div
+                  key={b.id || b.phone}
+                  style={{
+                    background: C.surface,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 14,
+                    padding: 16,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)"
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14 }}>🚫</span>
+                        <span style={{ fontWeight: 700, fontSize: 15, color: "#fff", letterSpacing: "0.5px" }}>
+                          {b.phone}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 12.5, color: C.textMuted }}>
+                        <strong style={{ color: "var(--textPrimary)" }}>Motivo:</strong> {b.reason || "Não especificado"}
+                      </p>
+                    </div>
+
+                    <span
+                      style={{
+                        fontSize: 11,
+                        padding: "3px 8px",
+                        borderRadius: 6,
+                        fontWeight: 600,
+                        background: isExpired ? "rgba(156, 163, 175, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                        color: isExpired ? C.textMuted : "var(--error)",
+                        border: isExpired ? "1px solid rgba(156, 163, 175, 0.3)" : "1px solid rgba(239, 68, 68, 0.3)",
+                        flexShrink: 0
+                      }}
+                    >
+                      {isExpired ? "Expirado" : "Bloqueado"}
+                    </span>
+                  </div>
+
+                  <div style={{
+                    background: "rgba(0, 0, 0, 0.2)",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    fontSize: 12,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span style={{ color: C.textMuted }}>Expira em:</span>
+                    <span style={{ fontWeight: 600, color: isExpired ? C.textMuted : "#f87171" }}>
+                      {formatBanDate(b.banned_until)}
+                    </span>
+                  </div>
+
+                  <button
+                    className="btn"
+                    onClick={() => handleUnbanPassenger(b.phone)}
+                    disabled={isUnbanning}
+                    style={{
+                      background: C.online,
+                      color: "#000",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6
+                    }}
+                  >
+                    {isUnbanning ? "Desbloqueando..." : "Desbloquear"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -2325,7 +2684,15 @@ function AdminApp() {
 }
 
 // ---------------- ROOT ----------------
+function getNormalizedPath() {
+  if (typeof window === "undefined") return "/";
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, "") || "/";
+  return path;
+}
+
 export default function App() {
+  const [currentPath, setCurrentPath] = useState(getNormalizedPath);
+
   const [sessionToken, setSessionToken] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('biciuber_driver_token');
@@ -2337,15 +2704,23 @@ export default function App() {
     return getStoredDriverSession();
   });
 
-  const [view, setView] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('biciuber_driver_token');
-      if (token) {
-        return "driverApp";
+  const navigateTo = (path) => {
+    if (typeof window !== "undefined") {
+      const target = path.toLowerCase().replace(/\/+$/, "") || "/";
+      if (window.location.pathname !== target) {
+        window.history.pushState({}, "", target);
       }
+      setCurrentPath(target);
     }
-    return "welcome";
-  });
+  };
+
+  useEffect(() => {
+    const onPopState = () => {
+      setCurrentPath(getNormalizedPath());
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   // Sincronização entre abas
   useEffect(() => {
@@ -2358,14 +2733,12 @@ export default function App() {
           // Logout ocorreu em outra aba
           setSessionToken(null);
           setLoggedDriver(null);
-          setView("driverLogin");
         } else {
           // Login ocorreu em outra aba
           const driver = getStoredDriverSession();
           if (driver) {
             setSessionToken(driver.session_token);
             setLoggedDriver(driver);
-            setView("driverApp");
           }
         }
       }
@@ -2384,7 +2757,7 @@ export default function App() {
     const finalDriver = sessionData || driverData;
     setSessionToken(finalDriver.session_token || finalDriver.sessionToken);
     setLoggedDriver(finalDriver);
-    setView("driverApp");
+    navigateTo("/motorista");
   };
 
   const handleDriverLogout = () => {
@@ -2396,53 +2769,61 @@ export default function App() {
     clearDriverSession();
     setSessionToken(null);
     setLoggedDriver(null);
-    setView("driverLogin");
+    navigateTo("/motorista");
   };
 
-  if (window.location.pathname === "/admin") {
+  // ROTA DO ADMIN: /admin
+  if (currentPath === "/admin") {
     return (
-      <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <AdminApp />
       </div>
     );
   }
 
+  // ROTA DO MOTORISTA: /motorista
+  if (currentPath === "/motorista") {
+    const hasDriverAuth = !!sessionToken && !!(loggedDriver || getStoredDriverSession());
+    return (
+      <>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {hasDriverAuth ? (
+            <DriverApp 
+              driver={loggedDriver || getStoredDriverSession()} 
+              onLogout={handleDriverLogout} 
+            />
+          ) : (
+            <DriverLogin 
+              onBack={() => navigateTo("/")}
+              onLogin={handleDriverLoginSuccess} 
+            />
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // ROTA DO PASSAGEIRO (WEB APP NATIVO): /app ou /passageiro
+  if (currentPath === "/app" || currentPath === "/passageiro") {
+    return (
+      <>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <PassengerApp 
+            onNavigateToDriver={() => navigateTo("/motorista")} 
+            onNavigateToHome={() => navigateTo("/")}
+          />
+        </div>
+      </>
+    );
+  }
+
+  // ROTA RAIZ: "/" (LANDING PAGE ESTÁTICA / INSTITUCIONAL)
   return (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-        {view === "welcome" && (
-          <WelcomeScreen
-            onSelectPassenger={() => setView("passenger")}
-            onSelectDriver={() => {
-              const token = typeof window !== 'undefined' ? localStorage.getItem('biciuber_driver_token') : null;
-              const current = loggedDriver || getStoredDriverSession();
-              if (token && current) {
-                setSessionToken(token);
-                setLoggedDriver(current);
-                setView("driverApp");
-              } else {
-                setView("driverLogin");
-              }
-            }}
-          />
-        )}
-        {view === "passenger" && (
-          <PassengerApp onBack={() => setView("welcome")} />
-        )}
-        {view === "driverLogin" && (
-          <DriverLogin 
-            onBack={() => setView("welcome")}
-            onLogin={handleDriverLoginSuccess} 
-          />
-        )}
-        {view === "driverApp" && (loggedDriver || sessionToken) && (
-          <DriverApp 
-            driver={loggedDriver || getStoredDriverSession()} 
-            onLogout={handleDriverLogout} 
-          />
-        )}
-      </div>
+      <LandingPage onNavigate={navigateTo} />
     </>
   );
 }
