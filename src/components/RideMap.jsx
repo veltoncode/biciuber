@@ -205,8 +205,14 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
 
 // Componente principal envolvido com APIProvider
 export default function RideMap({ driverLocation, pickupLat, pickupLng }) {
+  // Leitura compatível com Vite e fallback de segurança
+  const apiKey =
+    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) ||
+    "";
+
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
+    <APIProvider apiKey={apiKey}>
       <RideMapContent
         driverLocation={driverLocation}
         pickupLat={pickupLat}
