@@ -1,6 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
 import { useTranslation } from "react-i18next";
+
+// Coordenadas padrão de Afuá - PA
+const AFUA_CENTER = { lat: -0.1566, lng: -50.3867 };
+
+// Estilos Solarpunk estáveis para o mapa (substitui o colorScheme="DARK" nativo)
+const solarpunkStyles = [
+  { elementType: "geometry", stylers: [{ color: "#1b2c24" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#10251d" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8ec3b0" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2d4a3e" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#f4ebdd" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0c1b14" }] },
+  { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }
+];
+
+const mapOptions = {
+  styles: solarpunkStyles,
+  disableDefaultUI: true
+};
 
 // Helper para obter o ícone do bicitáxi com SVG customizado (amarelo e preto)
 const getDriverIcon = () => {
@@ -36,10 +55,17 @@ const getPassengerIcon = () => {
   return undefined;
 };
 
-// Componente para controlar visualização reativa (fitBounds e auto-center)
-function MapController({ driverPos, passengerPos, autoCenter, setAutoCenter }) {
+// Componente para controlar visualização reativa (enquadramento e auto-center)
+function MapController({ driverPos, autoCenter, setAutoCenter }) {
   const map = useMap();
 
+  // Aplica explicitamente as opções de estilo do mapa quando o mapa estiver pronto
+  useEffect(() => {
+    if (!map) return;
+    map.setOptions(mapOptions);
+  }, [map]);
+
+  // Desativa autoCenter se o usuário arrastar o mapa manualmente
   useEffect(() => {
     if (!map) return;
 
@@ -56,18 +82,22 @@ function MapController({ driverPos, passengerPos, autoCenter, setAutoCenter }) {
     };
   }, [map, setAutoCenter]);
 
+  // Enquadramento reativo: segue o bicitáxi ou mantém Afuá com zoom 16
   useEffect(() => {
     if (!map || !autoCenter) return;
 
-    if (driverPos && passengerPos && typeof window !== "undefined" && window.google?.maps?.LatLngBounds) {
-      const bounds = new window.google.maps.LatLngBounds();
-      bounds.extend(driverPos);
-      bounds.extend(passengerPos);
-      map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
-    } else if (driverPos) {
+    if (driverPos) {
       map.panTo(driverPos);
+      if (map.getZoom() !== 16) {
+        map.setZoom(16);
+      }
+    } else {
+      map.panTo(AFUA_CENTER);
+      if (map.getZoom() !== 16) {
+        map.setZoom(16);
+      }
     }
-  }, [map, driverPos, passengerPos, autoCenter]);
+  }, [map, driverPos, autoCenter]);
 
   return null;
 }
@@ -78,23 +108,28 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
   const map = useMap();
   const [autoCenter, setAutoCenter] = useState(true);
 
-  const passengerPos =
-    pickupLat != null && pickupLng != null && !isNaN(Number(pickupLat)) && !isNaN(Number(pickupLng))
-      ? { lat: Number(pickupLat), lng: Number(pickupLng) }
-      : null;
+  // Normalização segura das coordenadas do motorista (latitude/longitude ou lat/lng)
+  const lat = driverLocation?.latitude ?? driverLocation?.lat;
+  const lng = driverLocation?.longitude ?? driverLocation?.lng;
+  const driverPos = (lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng)))
+    ? { lat: Number(lat), lng: Number(lng) }
+    : null;
 
-  const driverPos =
-    driverLocation?.latitude != null && driverLocation?.longitude != null
-      ? { lat: Number(driverLocation.latitude), lng: Number(driverLocation.longitude) }
+  // Normalização segura das coordenadas do passageiro
+  const pLat = pickupLat;
+  const pLng = pickupLng;
+  const passengerPos =
+    pLat != null && pLng != null && !isNaN(Number(pLat)) && !isNaN(Number(pLng))
+      ? { lat: Number(pLat), lng: Number(pLng) }
       : null;
 
   return (
     <div
-      className="w-full h-[360px] md:h-[400px] relative rounded-xl overflow-hidden border border-white/10"
+      className="w-full relative rounded-xl overflow-hidden border border-white/10"
       style={{
         width: "100%",
-        height: 360,
-        minHeight: 360,
+        height: "360px",
+        minHeight: "360px",
         position: "relative",
         borderRadius: 12,
         overflow: "hidden",
@@ -102,13 +137,14 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
       }}
     >
       <Map
-        defaultCenter={{ lat: -0.1566, lng: -50.3867 }}
+        defaultCenter={AFUA_CENTER}
         defaultZoom={16}
         gestureHandling="greedy"
         disableDefaultUI={true}
         className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
-        colorScheme="DARK"
+        styles={solarpunkStyles}
+        options={mapOptions}
       >
         {passengerPos && (
           <Marker
@@ -128,7 +164,6 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
 
         <MapController
           driverPos={driverPos}
-          passengerPos={passengerPos}
           autoCenter={autoCenter}
           setAutoCenter={setAutoCenter}
         />
@@ -205,10 +240,9 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
 
 // Componente principal envolvido com APIProvider
 export default function RideMap({ driverLocation, pickupLat, pickupLng }) {
-  // Leitura compatível com Vite e fallback de segurança
   const apiKey =
-    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
-    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    (typeof import.meta !== "undefined" && import.meta.env?.VITE_GOOGLE_MAPS_API_KEY) ||
     "";
 
   return (
