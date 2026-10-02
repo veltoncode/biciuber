@@ -519,38 +519,7 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
         subtitle="Passageiro" 
         onBack={!activeRide ? (stage !== "choice" ? () => setStage("choice") : (onNavigateToHome ? () => onNavigateToHome() : undefined)) : undefined} 
         backLabel={stage !== "choice" ? t("back", { defaultValue: "Voltar" }) : "Início"} 
-        rightContent={
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <LanguageSelector />
-            {!activeRide && stage === "choice" && (
-              <a
-                href="/motorista"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onNavigateToDriver();
-                }}
-                style={{
-                  color: C.textMuted,
-                  fontSize: 11.5,
-                  textDecoration: "none",
-                  padding: "5px 10px",
-                  borderRadius: 8,
-                  border: `1px solid ${C.border}`,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4
-                }}
-                title={t("driverArea", { defaultValue: "Área do Condutor" })}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="7" r="4" />
-                  <path d="M5 21v-2.5A5.5 5.5 0 0 1 10.5 13h3A5.5 5.5 0 0 1 19 18.5V21" />
-                </svg>
-                <span>{t("driverArea", { defaultValue: "Área do Condutor" })}</span>
-              </a>
-            )}
-          </div>
-        }
+        rightContent={<LanguageSelector />}
       />
       {liveStatus && (
         <div style={{ background: C.surfaceAlt, padding: "4px 0", textAlign: "center", fontSize: 11, color: C.textMuted, borderBottom: `1px solid ${C.border}` }}>
@@ -901,36 +870,13 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
           </div>
         )}
       </div>
-      {!activeRide && (
-        <footer style={{ padding: "16px 20px 24px", textAlign: "center", borderTop: `1px solid ${C.border}`, background: C.bg, display: "flex", justifyContent: "center", alignItems: "center", gap: 20 }}>
-          {onNavigateToHome && (
-            <a
-              href="/"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigateToHome();
-              }}
-              style={{
-                color: C.textMuted,
-                fontSize: 12.5,
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                opacity: 0.8,
-                transition: "opacity 0.2s"
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = "0.8"}
-            >
-              <span>← Início</span>
-            </a>
-          )}
+      {!activeRide && onNavigateToHome && (
+        <footer style={{ padding: "16px 20px 24px", textAlign: "center", borderTop: `1px solid ${C.border}`, background: C.bg, display: "flex", justifyContent: "center", alignItems: "center" }}>
           <a
-            href="/motorista"
+            href="/"
             onClick={(e) => {
               e.preventDefault();
-              onNavigateToDriver();
+              onNavigateToHome();
             }}
             style={{
               color: C.textMuted,
@@ -945,11 +891,7 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
             onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
             onMouseLeave={(e) => e.currentTarget.style.opacity = "0.8"}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="7" r="4" />
-              <path d="M5 21v-2.5A5.5 5.5 0 0 1 10.5 13h3A5.5 5.5 0 0 1 19 18.5V21" />
-            </svg>
-            <span>{t("driverArea", { defaultValue: "Área do Condutor" })}</span>
+            <span>← Início</span>
           </a>
         </footer>
       )}

@@ -26,12 +26,18 @@ const translations = {
     step2Desc: "Dispare a chamada para os condutores pela rede ou converse diretamente no WhatsApp do profissional com apenas um clique.",
     step3Title: "3. Embarque Ecológico",
     step3Desc: "O bicitaxista vai até você pelas passarelas de madeira de Afuá. Viagem limpa, segura e com pagamento direto ao condutor.",
+    step4Title: "4. Pague Direto ao Condutor",
+    step4Desc: "Sem intermediários. Combine o valor e pague diretamente ao bicitaxista no final da corrida, fortalecendo a economia local da cidade.",
     faqTag: "TIRE SUAS DÚVIDAS",
     faqTitle: "Perguntas Frequentes",
     faqs: [
       {
+        q: "O que é o projeto BiciTaxi?",
+        a: "O BiciTaxi nasceu como um projeto de TCC de Engenharia de Software, focado em resolver a mobilidade urbana local. É uma plataforma 100% Open-Source (licença AGPL), criada para que outros desenvolvedores possam contribuir, melhorar o código e deixar um legado tecnológico e sustentável para a nossa comunidade."
+      },
+      {
         q: "Como faço para pedir um bicitáxi?",
-        a: "Basta clicar no botão 'Pedir um Bicitáxi' ou acessar /app. Informe seu número de telefone e os locais de partida e destino. Não é necessário cadastrar cartão nem criar senhas complexas."
+        a: "Basta clicar no botão verde 'Pedir um Bicitáxi' na página inicial. A partir daí, você terá duas opções:\n\n1. Solicitar agora: O sistema envia um chamado instantâneo para todos os bicitaxistas disponíveis no momento. O primeiro que aceitar fará a sua corrida.\n\n2. Escolher um bicitaxista: O aplicativo mostra uma lista em tempo real de quem está livre. Assim, você pode escolher o seu condutor favorito e chamá-lo diretamente, eliminando a confusão dos grupos de WhatsApp onde nunca se sabe quem está realmente trabalhando."
       },
       {
         q: "O BiciTaxi cobra alguma comissão ou taxa?",
@@ -39,11 +45,11 @@ const translations = {
       },
       {
         q: "Preciso baixar aplicativo na Play Store ou App Store?",
-        a: "Não é necessário. O BiciTaxi funciona diretamente no navegador do seu smartphone como um Progressive Web App (PWA). Você pode clicar em 'Instalar no Celular' para fixá-lo na tela inicial."
+        a: "Não. Para facilitar o acesso rápido, o BiciTaxi funciona diretamente no navegador de qualquer celular. Assim que a plataforma for validada e testada exaustivamente pela comunidade nas ruas, planejamos lançar as versões nativas nas lojas de aplicativos."
       },
       {
         q: "Como os bicitaxistas começam a atender?",
-        a: "Na 'Área do Condutor' (/motorista), o profissional realiza o cadastro informando telefone, nome e placa. Após a aprovação do administrador, ele recebe um PIN exclusivo de acesso."
+        a: "Na Área do Condutor, o profissional realiza o cadastro informando telefone, nome e placa. Após a aprovação do administrador, ele recebe um PIN exclusivo de acesso."
       },
       {
         q: "Visitantes e turistas com números estrangeiros podem usar?",
@@ -86,12 +92,18 @@ const translations = {
     step2Desc: "Send a real-time ride request through the system or chat directly on WhatsApp with the driver in one tap.",
     step3Title: "3. Eco-Friendly Ride",
     step3Desc: "The driver picks you up on the scenic wooden walkways of Afuá. Safe, clean, and direct payment to the driver.",
+    step4Title: "4. Pay the Driver Directly",
+    step4Desc: "No middlemen. Agree on the price and pay the driver directly at the end of the trip, supporting the local economy.",
     faqTag: "GOT QUESTIONS?",
     faqTitle: "Frequently Asked Questions",
     faqs: [
       {
+        q: "What is the BiciTaxi project?",
+        a: "BiciTaxi was born as a Software Engineering graduation thesis project focused on solving local urban mobility. It is a 100% Open-Source platform (AGPL license), created so other developers can contribute, improve the code, and leave a sustainable technological legacy for our community."
+      },
+      {
         q: "How do I request a BiciTaxi?",
-        a: "Just tap 'Call a BiciTaxi' or visit /app. Enter your phone number, pickup, and destination. No credit card registration or password required."
+        a: "Simply click the green 'Call a BiciTaxi' button on the homepage. From there, you will have two options:\n\n1. Request now: The system sends an instant ride request to all currently available drivers. The first driver to accept will take your trip.\n\n2. Choose a driver: The app displays a real-time list of who is currently available. This lets you pick your favorite driver and contact them directly, eliminating the confusion of WhatsApp groups where you never know who is actually working."
       },
       {
         q: "Does BiciTaxi charge any commission or fees?",
@@ -99,11 +111,11 @@ const translations = {
       },
       {
         q: "Do I need to download an app from Play Store or App Store?",
-        a: "Not at all. BiciTaxi works directly in your smartphone browser as a Progressive Web App (PWA). You can tap 'Install on Phone' to pin it to your home screen."
+        a: "No. For quick and easy access, BiciTaxi works directly in any mobile browser. Once the platform is thoroughly tested and validated by the community on the streets, we plan to release native versions in app stores."
       },
       {
         q: "How do drivers register and accept rides?",
-        a: "In the 'Driver Area' (/motorista), drivers register with their phone, name, and license plate. Once approved by the administrator, they get a dedicated PIN."
+        a: "In the 'Driver Area', drivers register with their phone, name, and license plate. Once approved by the administrator, they get a dedicated PIN."
       },
       {
         q: "Can international tourists and visitors use foreign numbers?",
@@ -146,12 +158,18 @@ const translations = {
     step2Desc: "Lancez la demande en temps réel ou discutez directement par WhatsApp avec le chauffeur en un clic.",
     step3Title: "3. Trajet Écologique",
     step3Desc: "Le chauffeur vient vous chercher sur les passerelles en bois d'Afuá. Voyage propre et paiement direct.",
+    step4Title: "4. Payez Directement au Chauffeur",
+    step4Desc: "Sans intermédiaires. Convenez du tarif et payez directement le chauffeur à la fin de la course, renforçant l'économie locale.",
     faqTag: "DES QUESTIONS ?",
     faqTitle: "Foire Aux Questions",
     faqs: [
       {
+        q: "Qu'est-ce que le projet BiciTaxi ?",
+        a: "BiciTaxi est né comme projet de fin d'études en Génie Logiciel dédié à la mobilité urbaine locale. C'est une plateforme 100% Open-Source (licence AGPL), créée pour que d'autres développeurs puissent contribuer, améliorer le code et laisser un héritage technologique et durable pour notre communauté."
+      },
+      {
         q: "Comment commander un bicitaxi ?",
-        a: "Cliquez simplement sur 'Commander un BiciTaxi' ou accédez à /app. Indiquez votre numéro de téléphone et vos points de départ et d'arrivée. Aucune carte bancaire requise."
+        a: "Cliquez simplement sur le bouton vert 'Commander un BiciTaxi' sur la page d'accueil. À partir de là, vous aurez deux options :\n\n1. Demander maintenant : Le système envoie un appel instantané à tous les chauffeurs disponibles en ce moment. Le premier à accepter effectuera votre course.\n\n2. Choisir un chauffeur : L'application affiche une liste en temps réel des chauffeurs libres. Vous pouvez ainsi choisir votre chauffeur favori et l'appeler directement, éliminant la confusion des groupes WhatsApp où l'on ne sait jamais qui travaille réellement."
       },
       {
         q: "BiciTaxi prélève-t-il des commissions ou des frais ?",
@@ -159,11 +177,11 @@ const translations = {
       },
       {
         q: "Dois-je télécharger une application sur le Play Store ou l'App Store ?",
-        a: "Non. BiciTaxi fonctionne directement dans le navigateur de votre smartphone comme une Progressive Web App (PWA). Vous pouvez l'installer sur l'écran d'accueil."
+        a: "Non. Pour un accès rapide, BiciTaxi fonctionne directement dans le navigateur de n'importe quel smartphone. Dès que la plateforme sera largement testée et validée par la communauté dans les rues, nous prévoyons de lancer des versions natives sur les magasins d'applications."
       },
       {
         q: "Comment les chauffeurs s'inscrivent-ils ?",
-        a: "Dans l'Espace Conducteur (/motorista), le chauffeur renseigne son numéro, son nom et sa plaque. Après validation de l'administrateur, il reçoit son code PIN."
+        a: "Dans l'Espace Conducteur, le chauffeur renseigne son numéro, son nom et sa plaque. Après validation de l'administrateur, il reçoit son code PIN."
       },
       {
         q: "Les touristes avec un numéro étranger peuvent-ils l'utiliser ?",
@@ -239,12 +257,6 @@ export default function LandingPage({ onNavigate }) {
             opacity: 0;
           }
         }
-
-        @media (max-width: 580px) {
-          .landing-header-driver-btn {
-            display: none !important;
-          }
-        }
       `}</style>
 
       {/* 1. HEADER */}
@@ -298,7 +310,7 @@ export default function LandingPage({ onNavigate }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center" }}>
           {/* Seletor de Idiomas (PT, EN, FR) sem bibliotecas externas */}
           <div
             style={{
@@ -339,43 +351,6 @@ export default function LandingPage({ onNavigate }) {
               );
             })}
           </div>
-
-          <a
-            href="/motorista"
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate("/motorista");
-            }}
-            className="landing-header-driver-btn"
-            style={{
-              color: "var(--textSecondary, rgba(244, 235, 221, 0.8))",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "none",
-              padding: "7px 12px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6
-            }}
-          >
-            <span>{t.driverArea}</span>
-          </a>
-
-          <button
-            onClick={() => onNavigate("/app")}
-            className="btn btn-primary-gradient"
-            style={{
-              padding: "8px 16px",
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              boxShadow: "0 2px 10px rgba(24, 201, 120, 0.25)"
-            }}
-          >
-            {t.openApp}
-          </button>
         </div>
       </header>
 
@@ -633,7 +608,7 @@ export default function LandingPage({ onNavigate }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: 20,
                 textAlign: "left"
               }}
@@ -745,6 +720,42 @@ export default function LandingPage({ onNavigate }) {
                   {t.step3Desc}
                 </p>
               </div>
+
+              {/* Passo 4 */}
+              <div
+                className="glass-card"
+                style={{
+                  padding: 24,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                  position: "relative"
+                }}
+              >
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: "rgba(24, 201, 120, 0.15)",
+                    border: "1px solid var(--border)",
+                    color: "var(--primary, #18C978)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
+                    fontWeight: 800
+                  }}
+                >
+                  4
+                </div>
+                <h3 style={{ margin: 0, fontSize: 17, color: "#fff", fontWeight: 700 }}>
+                  {t.step4Title}
+                </h3>
+                <p style={{ margin: 0, fontSize: 13.5, color: "var(--textSecondary)", lineHeight: 1.55 }}>
+                  {t.step4Desc}
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -823,7 +834,8 @@ export default function LandingPage({ onNavigate }) {
                         color: "var(--textSecondary, rgba(244, 235, 221, 0.75))",
                         lineHeight: 1.6,
                         borderTop: "1px solid rgba(255, 255, 255, 0.05)",
-                        paddingTop: 12
+                        paddingTop: 12,
+                        whiteSpace: "pre-line"
                       }}
                     >
                       {faq.a}
@@ -860,7 +872,7 @@ export default function LandingPage({ onNavigate }) {
               display: "flex",
               flexWrap: "wrap",
               justifyContent: "center",
-              gap: "12px 20px",
+              gap: "12px 24px",
               fontSize: 13
             }}
           >
@@ -891,35 +903,6 @@ export default function LandingPage({ onNavigate }) {
             >
               {t.privacy}
             </button>
-
-            <a
-              href="/motorista"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate("/motorista");
-              }}
-              style={{
-                color: "var(--textSecondary)",
-                textDecoration: "none"
-              }}
-            >
-              {t.driverArea}
-            </a>
-
-            <a
-              href="/admin"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate("/admin");
-              }}
-              style={{
-                color: "var(--textSecondary)",
-                textDecoration: "none",
-                opacity: 0.6
-              }}
-            >
-              {t.adminArea}
-            </a>
           </div>
 
           <div
