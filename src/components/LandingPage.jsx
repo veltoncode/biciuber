@@ -18,6 +18,8 @@ const translations = {
     statFeesDesc: "Renda 100% para o condutor local",
     statDirect: "WhatsApp & Realtime",
     statDirectDesc: "Contato direto e sem atrito",
+    statVerified: "Condutores Verificados",
+    statVerifiedDesc: "Profissionais locais aprovados para a sua segurança",
     howItWorksTag: "SIMPLICIDADE TOTAL",
     howItWorks: "Como Funciona",
     step1Title: "1. Escolha seu Trajeto",
@@ -84,6 +86,8 @@ const translations = {
     statFeesDesc: "100% income goes directly to driver",
     statDirect: "WhatsApp & Real-Time",
     statDirectDesc: "Direct contact with zero friction",
+    statVerified: "Verified Drivers",
+    statVerifiedDesc: "Approved local professionals for your safety",
     howItWorksTag: "TOTAL SIMPLICITY",
     howItWorks: "How it Works",
     step1Title: "1. Choose Your Route",
@@ -150,6 +154,8 @@ const translations = {
     statFeesDesc: "100% des revenus pour le chauffeur",
     statDirect: "WhatsApp & Temps Réel",
     statDirectDesc: "Contact direct et sans friction",
+    statVerified: "Chauffeurs Vérifiés",
+    statVerifiedDesc: "Professionnels locaux approuvés pour votre sécurité",
     howItWorksTag: "SIMPLICITÉ TOTALE",
     howItWorks: "Comment ça marche",
     step1Title: "1. Choisissez Votre Trajet",
@@ -256,6 +262,36 @@ export default function LandingPage({ onNavigate }) {
             transform: scale(1.35);
             opacity: 0;
           }
+        }
+
+        .features-grid {
+          display: grid;
+          grid-template-columns: repeat(1, minmax(0, 1fr));
+          gap: 16px;
+          width: 100%;
+          max-width: 960px;
+        }
+
+        @media (min-width: 640px) {
+          .features-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .features-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+        }
+
+        .feature-card {
+          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .feature-card:hover {
+          transform: translateY(-2px);
+          border-color: rgba(24, 201, 120, 0.45);
+          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
         }
       `}</style>
 
@@ -548,32 +584,30 @@ export default function LandingPage({ onNavigate }) {
             <InstallPwaButton />
           </div>
 
-          {/* Destaques Rápidos */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 16,
-              width: "100%",
-              maxWidth: 780
-            }}
-          >
-            <div className="glass-card" style={{ padding: "16px 14px", textAlign: "center" }}>
+          {/* Destaques Rápidos (Features Grid) */}
+          <div className="features-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+            <div className="glass-card feature-card" style={{ padding: "16px 14px", textAlign: "center" }}>
               <div style={{ fontSize: 24, marginBottom: 6 }}>🌱</div>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{t.statEcological}</div>
               <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--textSecondary)" }}>{t.statEcologicalDesc}</p>
             </div>
 
-            <div className="glass-card" style={{ padding: "16px 14px", textAlign: "center" }}>
+            <div className="glass-card feature-card" style={{ padding: "16px 14px", textAlign: "center" }}>
               <div style={{ fontSize: 24, marginBottom: 6 }}>🤝</div>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{t.statFees}</div>
               <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--textSecondary)" }}>{t.statFeesDesc}</p>
             </div>
 
-            <div className="glass-card" style={{ padding: "16px 14px", textAlign: "center" }}>
+            <div className="glass-card feature-card" style={{ padding: "16px 14px", textAlign: "center" }}>
               <div style={{ fontSize: 24, marginBottom: 6 }}>💬</div>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{t.statDirect}</div>
               <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--textSecondary)" }}>{t.statDirectDesc}</p>
+            </div>
+
+            <div className="glass-card feature-card" style={{ padding: "16px 14px", textAlign: "center" }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>🛡️</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{t.statVerified}</div>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--textSecondary)" }}>{t.statVerifiedDesc}</p>
             </div>
           </div>
         </section>
