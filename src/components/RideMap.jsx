@@ -125,13 +125,12 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
 
   return (
     <div
-      className="w-full relative rounded-xl overflow-hidden border border-white/10"
       style={{
         width: "100%",
-        height: "360px",
-        minHeight: "360px",
+        height: "400px",
+        minHeight: "400px",
         position: "relative",
-        borderRadius: 12,
+        borderRadius: "12px",
         overflow: "hidden",
         border: "1px solid rgba(255, 255, 255, 0.1)"
       }}
@@ -141,7 +140,6 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
         defaultZoom={16}
         gestureHandling="greedy"
         disableDefaultUI={true}
-        className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
         styles={solarpunkStyles}
         options={mapOptions}
