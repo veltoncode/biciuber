@@ -108,9 +108,10 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
   const map = useMap();
   const [autoCenter, setAutoCenter] = useState(true);
 
-  // Normalização segura das coordenadas do motorista (latitude/longitude ou lat/lng)
-  const lat = driverLocation?.latitude ?? driverLocation?.lat;
-  const lng = driverLocation?.longitude ?? driverLocation?.lng;
+  // Normalização segura das coordenadas do motorista (procura em todos os níveis possíveis, incluindo payload)
+  const lat = driverLocation?.payload?.latitude ?? driverLocation?.payload?.lat ?? driverLocation?.latitude ?? driverLocation?.lat;
+  const lng = driverLocation?.payload?.longitude ?? driverLocation?.payload?.lng ?? driverLocation?.longitude ?? driverLocation?.lng;
+
   const driverPos = (lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng)))
     ? { lat: Number(lat), lng: Number(lng) }
     : null;
@@ -127,8 +128,8 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
     <div
       style={{
         width: "100%",
-        height: "400px",
-        minHeight: "400px",
+        height: "500px",
+        minHeight: "500px",
         position: "relative",
         borderRadius: "12px",
         overflow: "hidden",
