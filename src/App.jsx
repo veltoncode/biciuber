@@ -452,6 +452,8 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
         passengerCount: 1,
         hasLuggage: false,
         notes: null,
+        pickup_lat: ride.pickup_lat ?? pickupLat,
+        pickup_lng: ride.pickup_lng ?? pickupLng,
       };
 
       localStorage.setItem("biciuber-active-ride", JSON.stringify(activeData));
@@ -769,6 +771,8 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
                           driverLocation={driverLocation} 
                           pickupLat={activeRide.pickup_lat} 
                           pickupLng={activeRide.pickup_lng} 
+                          passengerLocation={activeRide.pickup_lat && activeRide.pickup_lng ? { lat: activeRide.pickup_lat, lng: activeRide.pickup_lng } : null}
+                          origin={activeRide.pickup_lat && activeRide.pickup_lng ? { lat: activeRide.pickup_lat, lng: activeRide.pickup_lng } : null}
                         />
                         {driverLocation && (Date.now() - driverLocation.timestamp > 30000) && (
                            <p style={{ fontSize: 11, color: "var(--secondary)", marginTop: 6, textAlign: "left" }}>
