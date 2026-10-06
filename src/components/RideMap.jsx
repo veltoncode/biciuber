@@ -1,25 +1,9 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
 import { useTranslation } from "react-i18next";
 
 // Coordenadas padrão de Afuá - PA
 const AFUA_CENTER = { lat: -0.1566, lng: -50.3867 };
-
-// Estilos Solarpunk estáveis para o mapa (substitui o colorScheme="DARK" nativo)
-const solarpunkStyles = [
-  { elementType: "geometry", stylers: [{ color: "#1b2c24" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#10251d" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8ec3b0" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2d4a3e" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#f4ebdd" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0c1b14" }] },
-  { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }
-];
-
-const mapOptions = {
-  styles: solarpunkStyles,
-  disableDefaultUI: true
-};
 
 // Helper para obter o ícone do bicitáxi com SVG customizado (amarelo e preto)
 const getDriverIcon = () => {
@@ -58,12 +42,6 @@ const getPassengerIcon = () => {
 // Componente para controlar visualização reativa (enquadramento e auto-center)
 function MapController({ driverPos, autoCenter, setAutoCenter }) {
   const map = useMap();
-
-  // Aplica explicitamente as opções de estilo do mapa quando o mapa estiver pronto
-  useEffect(() => {
-    if (!map) return;
-    map.setOptions(mapOptions);
-  }, [map]);
 
   // Desativa autoCenter se o usuário arrastar o mapa manualmente
   useEffect(() => {
@@ -142,8 +120,6 @@ function RideMapContent({ driverLocation, pickupLat, pickupLng }) {
         gestureHandling="greedy"
         disableDefaultUI={true}
         style={{ width: "100%", height: "100%" }}
-        styles={solarpunkStyles}
-        options={mapOptions}
       >
         {passengerPos && (
           <Marker
