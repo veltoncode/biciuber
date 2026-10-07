@@ -1827,7 +1827,7 @@ function DriverApp({ driver, onLogout }) {
                       className="btn"
                       disabled={updatingStatus}
                       onClick={() => handleUpdateRideStatus("DRIVER_ARRIVING")}
-                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: C.online, color: "#000", fontWeight: 800, fontSize: 14 }}
+                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionOnMyWay", { defaultValue: "Estou a caminho" })}
                     </button>
@@ -1838,7 +1838,7 @@ function DriverApp({ driver, onLogout }) {
                       className="btn"
                       disabled={updatingStatus}
                       onClick={() => handleUpdateRideStatus("DRIVER_ARRIVED")}
-                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: C.online, color: "#000", fontWeight: 800, fontSize: 14 }}
+                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionArrived", { defaultValue: "Cheguei ao local" })}
                     </button>
@@ -1849,7 +1849,7 @@ function DriverApp({ driver, onLogout }) {
                       className="btn"
                       disabled={updatingStatus}
                       onClick={() => handleUpdateRideStatus("IN_PROGRESS", t("confirmStartRide", { defaultValue: "Confirmar início da corrida?" }))}
-                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: "#3b82f6", color: "#fff", fontWeight: 800, fontSize: 14 }}
+                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#3b82f6", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(59,130,246,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionStartRide", { defaultValue: "Iniciar corrida" })}
                     </button>
@@ -1860,7 +1860,7 @@ function DriverApp({ driver, onLogout }) {
                       className="btn"
                       disabled={updatingStatus}
                       onClick={() => handleUpdateRideStatus("COMPLETED", t("confirmCompleteRide", { defaultValue: "Confirmar conclusão da corrida?" }))}
-                      style={{ width: "100%", padding: "14px", borderRadius: 12, background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: 14 }}
+                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(239,68,68,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionCompleteRide", { defaultValue: "Concluir corrida" })}
                     </button>
@@ -1975,7 +1975,9 @@ function DriverApp({ driver, onLogout }) {
                       className="btn accept-ride-btn"
                       style={{
                         width: "100%",
-                        minHeight: 52,
+                        minHeight: 60,
+                        fontSize: 17,
+                        borderRadius: 16,
                         marginTop: 0,
                         position: "static"
                       }}

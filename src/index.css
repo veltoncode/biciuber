@@ -218,11 +218,13 @@ button:focus-visible {
   }
   .accept-ride-btn {
     width: 100% !important;
-    min-height: 52px !important;
+    min-height: 60px !important;
     margin-top: 16px !important;
     position: static !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    font-size: 17px !important;
+    border-radius: 16px !important;
   }
 }
