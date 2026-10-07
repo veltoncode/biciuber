@@ -8,7 +8,7 @@ export default function BicitaxiIcon({
   variant,
   decorative = false,
 }) {
-  const imgSrc = "/icons/bicitaxi-afua-transparent.png";
+  const imgSrc = "/icons/bicitaxi-neon.png";
 
   return (
     <img
