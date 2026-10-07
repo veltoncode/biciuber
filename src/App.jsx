@@ -1082,6 +1082,7 @@ function DriverApp({ driver, onLogout }) {
 
   // GPS 2
   const [gpsStatus, setGpsStatus] = useState("off"); // "off" | "loading" | "sharing" | "error"
+  const [localDriverPos, setLocalDriverPos] = useState(null);
   const gpsChannel = useRef(null);
   const watchId = useRef(null);
   const lastGpsEmit = useRef(0);
@@ -1479,6 +1480,7 @@ function DriverApp({ driver, onLogout }) {
 
             lastValidPos = { lat, lng, time: now };
             setGpsStatus("sharing");
+            setLocalDriverPos({ latitude: lat, longitude: lng });
 
             // Throttle: 1 envio a cada 2s
             if (now - lastGpsEmit.current >= 2000) {
@@ -1788,6 +1790,19 @@ function DriverApp({ driver, onLogout }) {
                 {activeDriverRide.notes && (
                   <div style={{ fontSize: 12, color: "var(--secondary)", background: "rgba(244, 197, 66, 0.1)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word" }}>
                     <strong>Obs:</strong> {activeDriverRide.notes}
+                  </div>
+                )}
+
+                {(activeDriverRide.pickup_lat || localDriverPos) && (
+                  <div style={{ marginTop: 6, marginBottom: 6 }}>
+                    <p style={{ margin: "0 0 8px 0", fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>Mapa da Corrida</p>
+                    <RideMap 
+                      driverLocation={localDriverPos} 
+                      pickupLat={activeDriverRide.pickup_lat} 
+                      pickupLng={activeDriverRide.pickup_lng} 
+                      passengerLocation={activeDriverRide.pickup_lat && activeDriverRide.pickup_lng ? { lat: activeDriverRide.pickup_lat, lng: activeDriverRide.pickup_lng } : null}
+                      origin={activeDriverRide.pickup_lat && activeDriverRide.pickup_lng ? { lat: activeDriverRide.pickup_lat, lng: activeDriverRide.pickup_lng } : null}
+                    />
                   </div>
                 )}
 

@@ -136,7 +136,7 @@ export async function getActiveRideForDriver(driverId) {
   const { data, error } = await supabase
     .from("rides")
     .select(
-      "id, passenger_name, passenger_phone, pickup_description, destination_description, passenger_count, has_luggage, notes, status, driver_id, created_at, accepted_at, driver_arrived_at, started_at, completed_at, cancelled_at"
+      "id, passenger_name, passenger_phone, pickup_description, destination_description, pickup_lat, pickup_lng, passenger_count, has_luggage, notes, status, driver_id, created_at, accepted_at, driver_arrived_at, started_at, completed_at, cancelled_at"
     )
     .eq("driver_id", driverId)
     .in("status", ["ACCEPTED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "IN_PROGRESS"])
