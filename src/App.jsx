@@ -691,7 +691,7 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
         )}
 
         {stage === "requested" && activeRide && (
-          <div className="fade-in" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div className="fade-in" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             
             {/* Camada 1: Mapa ao fundo */}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0, background: C.surfaceAlt }}>
@@ -802,8 +802,8 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
               </div>
 
               {/* Área Sticky para os Botões */}
-              <div style={{ position: "sticky", bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: C.bg || "#071A14", borderTop: `1px solid ${C.borderLight}` }}>
-                <Button onClick={handleCancelRide} disabled={cancelling} variant="decline" style={{ width: "100%", minHeight: 52, borderRadius: 16, background: cancelling ? C.surfaceAlt : "transparent", color: cancelling ? C.textMuted : "var(--error)", border: `1px solid ${cancelling ? C.border : "var(--error)"}`, fontWeight: 700, fontSize: 15, position: "static" }}>
+              <div style={{ position: "sticky", bottom: 0, padding: "16px 20px calc(24px + env(safe-area-inset-bottom, 0px))", background: `linear-gradient(to top, ${C.bg || "#071A14"} 70%, transparent)`, borderTop: "none", display: "flex", justifyContent: "center" }}>
+                <Button onClick={handleCancelRide} disabled={cancelling} variant="decline" style={{ width: "100%", minHeight: 52, borderRadius: 16, background: cancelling ? C.surfaceAlt : "transparent", color: cancelling ? C.textMuted : "var(--error)", border: `1px solid ${cancelling ? C.border : "var(--error)"}`, fontWeight: 700, fontSize: 15, position: "static", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
                   {cancelling ? t("cancelling", { defaultValue: "Cancelando..." }) : t("cancelRide", { defaultValue: "Cancelar solicitação" })}
                 </Button>
               </div>
@@ -1652,7 +1652,7 @@ function DriverApp({ driver, onLogout }) {
             </p>
           </div>
         ) : activeDriverRide ? (
-          <div className="fade-in" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div className="fade-in" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             
             {/* Camada 1: Mapa ao fundo */}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0, background: C.surfaceAlt }}>
@@ -1755,24 +1755,24 @@ function DriverApp({ driver, onLogout }) {
               </div>
 
               {/* Área Sticky para os Botões Principais de Ação */}
-              <div style={{ position: "sticky", bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: C.bg || "#071A14", borderTop: `1px solid ${C.borderLight}` }}>
+              <div style={{ position: "sticky", bottom: 0, padding: "16px 20px calc(24px + env(safe-area-inset-bottom, 0px))", background: `linear-gradient(to top, ${C.bg || "#071A14"} 70%, transparent)`, borderTop: "none", display: "flex", justifyContent: "center" }}>
                 {activeDriverRide.status === "ACCEPTED" && (
-                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("DRIVER_ARRIVING")} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("DRIVER_ARRIVING")} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionOnMyWay", { defaultValue: "Estou a caminho" })}
                   </button>
                 )}
                 {activeDriverRide.status === "DRIVER_ARRIVING" && (
-                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("DRIVER_ARRIVED")} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("DRIVER_ARRIVED")} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionArrived", { defaultValue: "Cheguei ao local" })}
                   </button>
                 )}
                 {activeDriverRide.status === "DRIVER_ARRIVED" && (
-                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("IN_PROGRESS", t("confirmStartRide", { defaultValue: "Confirmar início da corrida?" }))} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#3b82f6", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(59,130,246,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("IN_PROGRESS", t("confirmStartRide", { defaultValue: "Confirmar início da corrida?" }))} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#3b82f6", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionStartRide", { defaultValue: "Iniciar corrida" })}
                   </button>
                 )}
                 {activeDriverRide.status === "IN_PROGRESS" && (
-                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("COMPLETED", t("confirmCompleteRide", { defaultValue: "Confirmar conclusão da corrida?" }))} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(239,68,68,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("COMPLETED", t("confirmCompleteRide", { defaultValue: "Confirmar conclusão da corrida?" }))} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionCompleteRide", { defaultValue: "Concluir corrida" })}
                   </button>
                 )}
