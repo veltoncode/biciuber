@@ -226,7 +226,7 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
         }
         setLocationErrorMsg(msg);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 }
     );
   };
   const [cancelling, setCancelling] = useState(false);
@@ -1505,7 +1505,7 @@ function DriverApp({ driver, onLogout }) {
               alert(t("cannotDetermineLocation", { defaultValue: "Não foi possível determinar sua localização." }));
             }
           },
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 }
         );
       }
     });
