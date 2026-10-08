@@ -528,7 +528,7 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
           {liveStatus}
         </div>
       )}
-      <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
+      <div style={{ flex: 1, padding: (stage === "requested" && activeRide) ? 0 : 20, overflowY: (stage === "requested" && activeRide) ? "hidden" : "auto", position: "relative" }}>
         {stage === "choice" && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 24, padding: "20px 0" }}>
             <h2 style={{ fontSize: 22, color: "#fff", margin: 0, fontWeight: 700 }}>
@@ -691,165 +691,123 @@ function PassengerApp({ onNavigateToDriver, onNavigateToHome }) {
         )}
 
         {stage === "requested" && activeRide && (
-          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div className="glass-card" style={{
-              padding: "24px 20px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-              gap: 14
-            }}>
-              {activeRide.status === "REQUESTED" ? (
-                <>
-                  <div style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: "50%",
-                    border: `3px solid ${C.border}`,
-                    borderTopColor: C.online,
-                    animation: "spin 0.8s linear infinite"
-                  }} />
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
-                      {t("lookingForBicitaxi", { defaultValue: "Procurando um bicitáxi..." })}
-                    </h3>
-                    <p style={{ margin: "4px 0 0", fontSize: 12, color: C.textMuted }}>
-                      {t("rideCode", { defaultValue: "Código da corrida" })}: <strong style={{ color: "#fff", fontFamily: "monospace" }}>#{activeRide.id ? activeRide.id.slice(0, 6).toUpperCase() : ""}</strong>
-                    </p>
-                    {activeRide.pickup_lat !== null && activeRide.pickup_lat !== undefined && (
-                      <p style={{ margin: "6px 0 0", fontSize: 11, color: C.online, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                        {t("locationShared", { defaultValue: "Localização compartilhada" })}
-                      </p>
-                    )}
-                  </div>
-                </>
+          <div className="fade-in" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            
+            {/* Camada 1: Mapa ao fundo */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0, background: C.surfaceAlt }}>
+              {activeRide.driver_id ? (
+                <RideMap 
+                  driverLocation={driverLocation} 
+                  pickupLat={activeRide.pickup_lat} 
+                  pickupLng={activeRide.pickup_lng} 
+                  passengerLocation={activeRide.pickup_lat && activeRide.pickup_lng ? { lat: activeRide.pickup_lat, lng: activeRide.pickup_lng } : null}
+                  origin={activeRide.pickup_lat && activeRide.pickup_lng ? { lat: activeRide.pickup_lat, lng: activeRide.pickup_lng } : null}
+                />
               ) : (
-                <>
-                  <div style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: "50%",
-                    background: "rgba(24, 201, 120, 0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: C.online
-                  }}>
-                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
-                      {activeRide.status === "ACCEPTED" && t("statusDriverFound", { defaultValue: "Bicitáxi encontrado" })}
-                      {activeRide.status === "DRIVER_ARRIVING" && t("statusDriverArriving", { defaultValue: "Bicitaxista a caminho" })}
-                      {activeRide.status === "DRIVER_ARRIVED" && t("statusDriverArrived", { defaultValue: "Bicitaxista chegou" })}
-                      {activeRide.status === "IN_PROGRESS" && t("statusInProgress", { defaultValue: "Corrida em andamento" })}
-                    </h3>
-                    {driverInfo && (
-                      <div style={{ marginTop: 12, padding: 12, background: C.bg, borderRadius: 12, textAlign: "left" }}>
-                        <p style={{ margin: 0, fontSize: 14, color: "#fff", fontWeight: 600 }}>{driverInfo.name}</p>
-                        <p style={{ margin: "4px 0", fontSize: 13, color: C.textMuted }}>Placa: <strong style={{color:"#fff"}}>{driverInfo.plate || "N/A"}</strong></p>
-                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                           <a href={`tel:${driverInfo.phone}`} style={{ flex: 1, textDecoration: "none" }}>
-                             <Button style={{ minHeight: 36, fontSize: 13, padding: "0 12px" }}>Ligar</Button>
-                           </a>
-                           <a href={`https://wa.me/55${driverInfo.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: "none" }}>
-                             <Button style={{ minHeight: 36, fontSize: 13, padding: "0 12px", background: "#25D366", color: "#fff" }}>WhatsApp</Button>
-                           </a>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* GPS 2: Mapa */}
-                    {activeRide.driver_id && (
-                      <div style={{ marginTop: 16 }}>
-                        <p style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", marginBottom: 8, textAlign: "left" }}>
-                          {t("liveBicitaxiLocation", { defaultValue: "Localização do bicitaxista em tempo real" })}
-                        </p>
-                        <RideMap 
-                          driverLocation={driverLocation} 
-                          pickupLat={activeRide.pickup_lat} 
-                          pickupLng={activeRide.pickup_lng} 
-                          passengerLocation={activeRide.pickup_lat && activeRide.pickup_lng ? { lat: activeRide.pickup_lat, lng: activeRide.pickup_lng } : null}
-                          origin={activeRide.pickup_lat && activeRide.pickup_lng ? { lat: activeRide.pickup_lat, lng: activeRide.pickup_lng } : null}
-                        />
-                        {driverLocation && (Date.now() - driverLocation.timestamp > 30000) && (
-                           <p style={{ fontSize: 11, color: "var(--secondary)", marginTop: 6, textAlign: "left" }}>
-                             {t("locationOutdated", { defaultValue: "Localização pode estar desatualizada." })}
-                           </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <PushSubscribeCard 
-              userType="PASSENGER" 
-              rideId={activeRide.id} 
-              publicTrackingToken={activeRide.publicTrackingToken} 
-            />
-
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {t("pickupLocation", { defaultValue: "Ponto de partida" })}
-                </p>
-                <p style={{ margin: "3px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeRide.pickupDescription}</p>
-              </div>
-
-              <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
-                <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {t("destinationLocation", { defaultValue: "Destino" })}
-                </p>
-                <p style={{ margin: "3px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeRide.destinationDescription}</p>
-              </div>
-
-              <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span>
-                  <span style={{ color: C.textMuted }}>{t("passengerCount", { defaultValue: "Passageiros" })}:</span> <strong>{activeRide.passengerCount}</strong>
-                </span>
-                <span>
-                  <span style={{ color: C.textMuted }}>{t("hasLuggage", { defaultValue: "Bagagem" })}:</span> <strong>{activeRide.hasLuggage ? t("yes", { defaultValue: "Sim" }) : t("no", { defaultValue: "Não" })}</strong>
-                </span>
-              </div>
-
-              {activeRide.expiresAt && (
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, textAlign: "center", fontSize: 12, color: C.textMuted }}>
-                  {t("expiresAt", { defaultValue: "Expira às" })} {new Date(activeRide.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.5 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", border: `3px solid ${C.border}`, borderTopColor: C.online, animation: "spin 0.8s linear infinite" }} />
                 </div>
               )}
             </div>
 
-            {cancelErrorMsg && (
-              <p style={{ color: "var(--error)", fontSize: 13, margin: 0, fontWeight: 500, textAlign: "center" }}>
-                {cancelErrorMsg}
-              </p>
-            )}
+            {/* Camada 2: Cartão Bottom Sheet */}
+            <div style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              width: "100%",
+              zIndex: 20,
+              background: C.bg || "#071A14",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              boxShadow: "0 -10px 40px rgba(0,0,0,0.5)",
+              display: "flex",
+              flexDirection: "column",
+              maxHeight: "85vh"
+            }}>
+              {/* Handle */}
+              <div style={{ width: "100%", display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <div style={{ width: 48, height: 6, backgroundColor: C.surfaceElevated || "#1e293b", borderRadius: 999 }}></div>
+              </div>
 
-            <div style={{ marginTop: 4, width: "100%", position: "static" }}>
-              <Button
-                onClick={handleCancelRide}
-                disabled={cancelling}
-                variant="decline"
-                style={{
-                  width: "100%",
-                  minHeight: 52,
-                  borderRadius: 12,
-                  background: cancelling ? C.surfaceAlt : "transparent",
-                  color: cancelling ? C.textMuted : "var(--error)",
-                  border: `1px solid ${cancelling ? C.border : "var(--error)"}`,
-                  fontWeight: 700,
-                  fontSize: 15,
-                  position: "static"
-                }}
-              >
-                {cancelling
-                  ? t("cancelling", { defaultValue: "Cancelando..." })
-                  : t("cancelRide", { defaultValue: "Cancelar solicitação" })}
-              </Button>
+              {/* Scrollable Content */}
+              <div style={{ padding: "0 20px 20px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
+                
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 12 }}>
+                  {activeRide.status === "REQUESTED" ? (
+                    <>
+                      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
+                        {t("lookingForBicitaxi", { defaultValue: "Procurando um bicitáxi..." })}
+                      </h3>
+                      <p style={{ margin: "2px 0 0", fontSize: 12, color: C.textMuted }}>
+                        {t("rideCode", { defaultValue: "Código da corrida" })}: <strong style={{ color: "#fff", fontFamily: "monospace" }}>#{activeRide.id ? activeRide.id.slice(0, 6).toUpperCase() : ""}</strong>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>
+                        {activeRide.status === "ACCEPTED" && t("statusDriverFound", { defaultValue: "Bicitáxi encontrado" })}
+                        {activeRide.status === "DRIVER_ARRIVING" && t("statusDriverArriving", { defaultValue: "Bicitaxista a caminho" })}
+                        {activeRide.status === "DRIVER_ARRIVED" && t("statusDriverArrived", { defaultValue: "Bicitaxista chegou" })}
+                        {activeRide.status === "IN_PROGRESS" && t("statusInProgress", { defaultValue: "Corrida em andamento" })}
+                      </h3>
+                      {driverInfo && (
+                        <div style={{ width: "100%", marginTop: 4, padding: 12, background: C.surface, borderRadius: 12, textAlign: "left" }}>
+                          <p style={{ margin: 0, fontSize: 14, color: "#fff", fontWeight: 600 }}>{driverInfo.name}</p>
+                          <p style={{ margin: "4px 0", fontSize: 13, color: C.textMuted }}>Placa: <strong style={{color:"#fff"}}>{driverInfo.plate || "N/A"}</strong></p>
+                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                             <a href={`tel:${driverInfo.phone}`} style={{ flex: 1, textDecoration: "none" }}>
+                               <Button style={{ minHeight: 36, fontSize: 13, padding: "0 12px" }}>Ligar</Button>
+                             </a>
+                             <a href={`https://wa.me/55${driverInfo.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: "none" }}>
+                               <Button style={{ minHeight: 36, fontSize: 13, padding: "0 12px", background: "#25D366", color: "#fff" }}>WhatsApp</Button>
+                             </a>
+                          </div>
+                        </div>
+                      )}
+                      {driverLocation && (Date.now() - driverLocation.timestamp > 30000) && (
+                        <p style={{ fontSize: 11, color: "var(--secondary)", marginTop: 0, textAlign: "center" }}>
+                          {t("locationOutdated", { defaultValue: "Localização pode estar desatualizada." })}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <PushSubscribeCard userType="PASSENGER" rideId={activeRide.id} publicTrackingToken={activeRide.publicTrackingToken} />
+
+                <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("pickupLocation", { defaultValue: "Ponto de partida" })}</p>
+                    <p style={{ margin: "3px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeRide.pickupDescription}</p>
+                  </div>
+                  <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("destinationLocation", { defaultValue: "Destino" })}</p>
+                    <p style={{ margin: "3px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff" }}>{activeRide.destinationDescription}</p>
+                  </div>
+                  <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <span><span style={{ color: C.textMuted }}>{t("passengerCount", { defaultValue: "Passageiros" })}:</span> <strong>{activeRide.passengerCount}</strong></span>
+                    <span><span style={{ color: C.textMuted }}>{t("hasLuggage", { defaultValue: "Bagagem" })}:</span> <strong>{activeRide.hasLuggage ? t("yes", { defaultValue: "Sim" }) : t("no", { defaultValue: "Não" })}</strong></span>
+                  </div>
+                  {activeRide.expiresAt && activeRide.status === "REQUESTED" && (
+                    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, textAlign: "center", fontSize: 12, color: C.textMuted }}>
+                      {t("expiresAt", { defaultValue: "Expira às" })} {new Date(activeRide.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
+                </div>
+
+                {cancelErrorMsg && (
+                  <p style={{ color: "var(--error)", fontSize: 13, margin: 0, fontWeight: 500, textAlign: "center" }}>{cancelErrorMsg}</p>
+                )}
+              </div>
+
+              {/* Área Sticky para os Botões */}
+              <div style={{ position: "sticky", bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: C.bg || "#071A14", borderTop: `1px solid ${C.borderLight}` }}>
+                <Button onClick={handleCancelRide} disabled={cancelling} variant="decline" style={{ width: "100%", minHeight: 52, borderRadius: 16, background: cancelling ? C.surfaceAlt : "transparent", color: cancelling ? C.textMuted : "var(--error)", border: `1px solid ${cancelling ? C.border : "var(--error)"}`, fontWeight: 700, fontSize: 15, position: "static" }}>
+                  {cancelling ? t("cancelling", { defaultValue: "Cancelando..." }) : t("cancelRide", { defaultValue: "Cancelar solicitação" })}
+                </Button>
+              </div>
+
             </div>
           </div>
         )}
@@ -1685,7 +1643,7 @@ function DriverApp({ driver, onLogout }) {
         )}
       </div>
 
-      <div style={{ flex: 1, padding: "20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ flex: 1, padding: (activeDriverRide && !checkingActiveRide) ? 0 : "20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", overflowY: (activeDriverRide && !checkingActiveRide) ? "hidden" : "auto", display: "flex", flexDirection: "column", gap: (activeDriverRide && !checkingActiveRide) ? 0 : 12, position: "relative" }}>
         {checkingActiveRide ? (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "60px 0" }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${C.border}`, borderTopColor: C.online, animation: "spin 0.8s linear infinite" }} />
@@ -1694,125 +1652,97 @@ function DriverApp({ driver, onLogout }) {
             </p>
           </div>
         ) : activeDriverRide ? (
-          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div className="glass-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "#000", background: C.online, padding: "4px 10px", borderRadius: 999, fontWeight: 800 }}>
-                  {activeDriverRide.status === "ACCEPTED" && t("statusDriverFound", { defaultValue: "Bicitáxi encontrado" })}
-                  {activeDriverRide.status === "DRIVER_ARRIVING" && t("statusDriverArriving", { defaultValue: "A caminho" })}
-                  {activeDriverRide.status === "DRIVER_ARRIVED" && t("statusDriverArrived", { defaultValue: "Chegou" })}
-                  {activeDriverRide.status === "IN_PROGRESS" && t("statusInProgress", { defaultValue: "Em andamento" })}
-                </span>
-                <span style={{ fontSize: 11.5, color: C.textMuted, fontFamily: "monospace" }}>
-                  #{activeDriverRide.id ? activeDriverRide.id.slice(0, 6).toUpperCase() : ""}
-                </span>
+          <div className="fade-in" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            
+            {/* Camada 1: Mapa ao fundo */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0, background: C.surfaceAlt }}>
+              {(activeDriverRide.pickup_lat || localDriverPos) && (
+                <RideMap 
+                  driverLocation={localDriverPos} 
+                  pickupLat={activeDriverRide.pickup_lat} 
+                  pickupLng={activeDriverRide.pickup_lng} 
+                  passengerLocation={activeDriverRide.pickup_lat && activeDriverRide.pickup_lng ? { lat: activeDriverRide.pickup_lat, lng: activeDriverRide.pickup_lng } : null}
+                  origin={activeDriverRide.pickup_lat && activeDriverRide.pickup_lng ? { lat: activeDriverRide.pickup_lat, lng: activeDriverRide.pickup_lng } : null}
+                />
+              )}
+            </div>
+
+            {/* Camada 2: Cartão Bottom Sheet */}
+            <div style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              width: "100%",
+              zIndex: 20,
+              background: C.bg || "#071A14",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              boxShadow: "0 -10px 40px rgba(0,0,0,0.5)",
+              display: "flex",
+              flexDirection: "column",
+              maxHeight: "85vh"
+            }}>
+              {/* Handle */}
+              <div style={{ width: "100%", display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <div style={{ width: 48, height: 6, backgroundColor: C.surfaceElevated || "#1e293b", borderRadius: 999 }}></div>
               </div>
 
-              <div>
-                <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {t("passengerName", { defaultValue: "Passageiro" })}
-                </p>
-                <h3 style={{ margin: "2px 0 0", fontSize: 18, fontWeight: 700, color: "#fff" }}>{activeDriverRide.passenger_name}</h3>
-                <p style={{ margin: "2px 0 0", fontSize: 13, color: C.textMuted }}>{activeDriverRide.passenger_phone}</p>
-              </div>
+              {/* Scrollable Content */}
+              <div style={{ padding: "0 20px 20px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#000", background: C.online, padding: "4px 10px", borderRadius: 999, fontWeight: 800 }}>
+                    {activeDriverRide.status === "ACCEPTED" && t("statusDriverFound", { defaultValue: "Bicitáxi encontrado" })}
+                    {activeDriverRide.status === "DRIVER_ARRIVING" && t("statusDriverArriving", { defaultValue: "A caminho" })}
+                    {activeDriverRide.status === "DRIVER_ARRIVED" && t("statusDriverArrived", { defaultValue: "Chegou" })}
+                    {activeDriverRide.status === "IN_PROGRESS" && t("statusInProgress", { defaultValue: "Em andamento" })}
+                  </span>
+                  <span style={{ fontSize: 11.5, color: C.textMuted, fontFamily: "monospace" }}>
+                    #{activeDriverRide.id ? activeDriverRide.id.slice(0, 6).toUpperCase() : ""}
+                  </span>
+                </div>
 
-              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                <a
-                  href={`tel:${onlyDigits(activeDriverRide.passenger_phone)}`}
-                  className="btn"
-                  style={{
-                    flex: 1,
-                    padding: "12px 10px",
-                    borderRadius: 12,
-                    background: "#fff",
-                    color: "#000",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6
-                  }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                  {t("callPassenger", { defaultValue: "Ligar" })}
-                </a>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    {t("passengerName", { defaultValue: "Passageiro" })}
+                  </p>
+                  <h3 style={{ margin: "2px 0 0", fontSize: 18, fontWeight: 700, color: "#fff" }}>{activeDriverRide.passenger_name}</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: 13, color: C.textMuted }}>{activeDriverRide.passenger_phone}</p>
+                </div>
 
-                <a
-                  href={formatWhatsappUrl(
-                    activeDriverRide.passenger_phone,
-                    t("whatsappDefaultMessage", { defaultValue: "Olá, sou o bicitaxista que aceitou sua solicitação no BiciTaxi." })
+                <div style={{ display: "flex", gap: 10 }}>
+                  <a href={`tel:${onlyDigits(activeDriverRide.passenger_phone)}`} className="btn" style={{ flex: 1, padding: "12px 10px", borderRadius: 12, background: "#fff", color: "#000", fontWeight: 700, fontSize: 13, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+                    {t("callPassenger", { defaultValue: "Ligar" })}
+                  </a>
+                  <a href={formatWhatsappUrl(activeDriverRide.passenger_phone, t("whatsappDefaultMessage", { defaultValue: "Olá, sou o bicitaxista que aceitou sua solicitação no BiciTaxi." }))} target="_blank" rel="noopener noreferrer" className="btn" style={{ flex: 1, padding: "12px 10px", borderRadius: 12, background: "#25D366", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 4.992l-1.417 5.176 5.297-1.389c1.458.796 3.099 1.215 4.774 1.216h.004c5.505 0 9.988-4.478 9.989-9.985 0-2.668-1.038-5.176-2.925-7.062a9.923 9.923 0 0 0-7.064-2.932z" /></svg>
+                    {t("whatsappPassenger", { defaultValue: "WhatsApp" })}
+                  </a>
+                </div>
+
+                <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("pickupLocation", { defaultValue: "Partida" })}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word" }}>{activeDriverRide.pickup_description}</p>
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("destinationLocation", { defaultValue: "Destino" })}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word" }}>{activeDriverRide.destination_description}</p>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.textMuted, borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
+                    <span>{t("passengerCount", { defaultValue: "Passageiros" })}: <strong style={{ color: "#fff" }}>{activeDriverRide.passenger_count}</strong></span>
+                    <span>{t("hasLuggage", { defaultValue: "Bagagem" })}: <strong style={{ color: "#fff" }}>{activeDriverRide.has_luggage ? t("yes", { defaultValue: "Sim" }) : t("no", { defaultValue: "Não" })}</strong></span>
+                  </div>
+                  {activeDriverRide.notes && (
+                    <div style={{ fontSize: 12, color: "var(--secondary)", background: "rgba(244, 197, 66, 0.1)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word" }}>
+                      <strong>Obs:</strong> {activeDriverRide.notes}
+                    </div>
                   )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn"
-                  style={{
-                    flex: 1,
-                    padding: "12px 10px",
-                    borderRadius: 12,
-                    background: "#25D366",
-                    color: "#fff",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6
-                  }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 4.992l-1.417 5.176 5.297-1.389c1.458.796 3.099 1.215 4.774 1.216h.004c5.505 0 9.988-4.478 9.989-9.985 0-2.668-1.038-5.176-2.925-7.062a9.923 9.923 0 0 0-7.064-2.932z" />
-                  </svg>
-                  {t("whatsappPassenger", { defaultValue: "WhatsApp" })}
-                </a>
-              </div>
-
-              <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("pickupLocation", { defaultValue: "Partida" })}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word" }}>{activeDriverRide.pickup_description}</p>
                 </div>
 
-                <div>
-                  <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>{t("destinationLocation", { defaultValue: "Destino" })}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 14.5, fontWeight: 600, color: "#fff", wordBreak: "break-word" }}>{activeDriverRide.destination_description}</p>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.textMuted, borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
-                  <span>{t("passengerCount", { defaultValue: "Passageiros" })}: <strong style={{ color: "#fff" }}>{activeDriverRide.passenger_count}</strong></span>
-                  <span>{t("hasLuggage", { defaultValue: "Bagagem" })}: <strong style={{ color: "#fff" }}>{activeDriverRide.has_luggage ? t("yes", { defaultValue: "Sim" }) : t("no", { defaultValue: "Não" })}</strong></span>
-                </div>
-
-                {activeDriverRide.notes && (
-                  <div style={{ fontSize: 12, color: "var(--secondary)", background: "rgba(244, 197, 66, 0.1)", padding: "8px 10px", borderRadius: 8, wordBreak: "break-word" }}>
-                    <strong>Obs:</strong> {activeDriverRide.notes}
-                  </div>
-                )}
-
-                {(activeDriverRide.pickup_lat || localDriverPos) && (
-                  <div style={{ marginTop: 6, marginBottom: 6 }}>
-                    <p style={{ margin: "0 0 8px 0", fontSize: 11, color: C.textMuted, textTransform: "uppercase" }}>Mapa da Corrida</p>
-                    <RideMap 
-                      driverLocation={localDriverPos} 
-                      pickupLat={activeDriverRide.pickup_lat} 
-                      pickupLng={activeDriverRide.pickup_lng} 
-                      passengerLocation={activeDriverRide.pickup_lat && activeDriverRide.pickup_lng ? { lat: activeDriverRide.pickup_lat, lng: activeDriverRide.pickup_lng } : null}
-                      origin={activeDriverRide.pickup_lat && activeDriverRide.pickup_lng ? { lat: activeDriverRide.pickup_lat, lng: activeDriverRide.pickup_lng } : null}
-                    />
-                  </div>
-                )}
-
-                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                  <button
-                    className="btn"
-                    disabled={gpsStatus === "loading"}
-                    onClick={gpsStatus === "sharing" ? stopSharingLocation : startSharingLocation}
-                    style={{ width: "100%", padding: "12px", borderRadius: 12, background: gpsStatus === "sharing" ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.1)", color: gpsStatus === "sharing" ? "#ef4444" : "#fff", border: `1px solid ${gpsStatus === "sharing" ? "rgba(239, 68, 68, 0.3)" : "rgba(255, 255, 255, 0.2)"}`, fontWeight: 600, fontSize: 13, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
-                  >
+                <div style={{ marginTop: 10 }}>
+                  <button className="btn" disabled={gpsStatus === "loading"} onClick={gpsStatus === "sharing" ? stopSharingLocation : startSharingLocation} style={{ width: "100%", padding: "12px", borderRadius: 12, background: gpsStatus === "sharing" ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.1)", color: gpsStatus === "sharing" ? "#ef4444" : "#fff", border: `1px solid ${gpsStatus === "sharing" ? "rgba(239, 68, 68, 0.3)" : "rgba(255, 255, 255, 0.2)"}`, fontWeight: 600, fontSize: 13, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ animation: gpsStatus === "loading" ? "spin 1s linear infinite" : "none" }}>
                       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                       <circle cx="12" cy="10" r="3" />
@@ -1821,52 +1751,33 @@ function DriverApp({ driver, onLogout }) {
                     {gpsStatus === "loading" && t("gettingGps", { defaultValue: "Obtendo GPS..." })}
                     {gpsStatus === "sharing" && t("stopSharing", { defaultValue: "Parar compartilhamento" })}
                   </button>
-
-                  {activeDriverRide.status === "ACCEPTED" && (
-                    <button
-                      className="btn"
-                      disabled={updatingStatus}
-                      onClick={() => handleUpdateRideStatus("DRIVER_ARRIVING")}
-                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionOnMyWay", { defaultValue: "Estou a caminho" })}
-                    </button>
-                  )}
-
-                  {activeDriverRide.status === "DRIVER_ARRIVING" && (
-                    <button
-                      className="btn"
-                      disabled={updatingStatus}
-                      onClick={() => handleUpdateRideStatus("DRIVER_ARRIVED")}
-                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionArrived", { defaultValue: "Cheguei ao local" })}
-                    </button>
-                  )}
-
-                  {activeDriverRide.status === "DRIVER_ARRIVED" && (
-                    <button
-                      className="btn"
-                      disabled={updatingStatus}
-                      onClick={() => handleUpdateRideStatus("IN_PROGRESS", t("confirmStartRide", { defaultValue: "Confirmar início da corrida?" }))}
-                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#3b82f6", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(59,130,246,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionStartRide", { defaultValue: "Iniciar corrida" })}
-                    </button>
-                  )}
-
-                  {activeDriverRide.status === "IN_PROGRESS" && (
-                    <button
-                      className="btn"
-                      disabled={updatingStatus}
-                      onClick={() => handleUpdateRideStatus("COMPLETED", t("confirmCompleteRide", { defaultValue: "Confirmar conclusão da corrida?" }))}
-                      style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(239,68,68,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionCompleteRide", { defaultValue: "Concluir corrida" })}
-                    </button>
-                  )}
                 </div>
               </div>
+
+              {/* Área Sticky para os Botões Principais de Ação */}
+              <div style={{ position: "sticky", bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: C.bg || "#071A14", borderTop: `1px solid ${C.borderLight}` }}>
+                {activeDriverRide.status === "ACCEPTED" && (
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("DRIVER_ARRIVING")} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionOnMyWay", { defaultValue: "Estou a caminho" })}
+                  </button>
+                )}
+                {activeDriverRide.status === "DRIVER_ARRIVING" && (
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("DRIVER_ARRIVED")} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: C.online, color: "#000", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(24,201,120,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionArrived", { defaultValue: "Cheguei ao local" })}
+                  </button>
+                )}
+                {activeDriverRide.status === "DRIVER_ARRIVED" && (
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("IN_PROGRESS", t("confirmStartRide", { defaultValue: "Confirmar início da corrida?" }))} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#3b82f6", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(59,130,246,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionStartRide", { defaultValue: "Iniciar corrida" })}
+                  </button>
+                )}
+                {activeDriverRide.status === "IN_PROGRESS" && (
+                  <button className="btn" disabled={updatingStatus} onClick={() => handleUpdateRideStatus("COMPLETED", t("confirmCompleteRide", { defaultValue: "Confirmar conclusão da corrida?" }))} style={{ width: "100%", minHeight: 60, padding: "16px", borderRadius: 16, background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: 17, boxShadow: "0 4px 12px rgba(239,68,68,0.3)", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {updatingStatus ? t("updating", { defaultValue: "Atualizando..." }) : t("actionCompleteRide", { defaultValue: "Concluir corrida" })}
+                  </button>
+                )}
+              </div>
+
             </div>
           </div>
         ) : !available ? (
