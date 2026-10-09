@@ -35,7 +35,7 @@ const translations = {
     faqs: [
       {
         q: "O que é o projeto BiciTaxi?",
-        a: "O BiciTaxi nasceu como um projeto de TCC de Engenharia de Software, focado em resolver a mobilidade urbana local. É uma plataforma 100% Open-Source (licença AGPL), criada para que outros desenvolvedores possam contribuir, melhorar o código e deixar um legado tecnológico e sustentável para a nossa comunidade."
+        a: "O projeto nasceu como um TCC de Engenharia de Software, focado em revolucionar a mobilidade urbana local ao oferecer uma nova forma de solicitar os famosos bicitáxis. Diferente de soluções genéricas ou aplicativos *white label*, esta é uma plataforma autêntica, desenvolvida do zero no bairro do Capimarinho, em Afuá-PA. É um projeto 100% Open-Source (licença AGPL), criado para que outros desenvolvedores possam contribuir, aprimorar o código e construir um legado tecnológico, colaborativo e sustentável para a nossa comunidade."
       },
       {
         q: "Como faço para pedir um bicitáxi?",
@@ -103,7 +103,7 @@ const translations = {
     faqs: [
       {
         q: "What is the BiciTaxi project?",
-        a: "BiciTaxi was born as a Software Engineering graduation thesis project focused on solving local urban mobility. It is a 100% Open-Source platform (AGPL license), created so other developers can contribute, improve the code, and leave a sustainable technological legacy for our community."
+        a: "The project started as a Software Engineering capstone project, focused on revolutionizing local urban mobility by offering a new way to request the famous bicitáxis. Unlike generic or white-label apps, this is an authentic platform built from scratch in the Capimarinho neighborhood, in Afuá-PA. It is 100% Open-Source (AGPL license), created so that other developers can contribute, improve the code, and build a collaborative, technological, and sustainable legacy for our community."
       },
       {
         q: "How do I request a BiciTaxi?",
@@ -171,7 +171,7 @@ const translations = {
     faqs: [
       {
         q: "Qu'est-ce que le projet BiciTaxi ?",
-        a: "BiciTaxi est né comme projet de fin d'études en Génie Logiciel dédié à la mobilité urbaine locale. C'est une plateforme 100% Open-Source (licence AGPL), créée pour que d'autres développeurs puissent contribuer, améliorer le code et laisser un héritage technologique et durable pour notre communauté."
+        a: "Le projet est né comme un projet de fin d'études en Génie Logiciel, axé sur la révolution de la mobilité urbaine locale en offrant une nouvelle façon de commander les célèbres bicitaxis. Contrairement aux solutions génériques ou aux applications en marque blanche (*white label*), il s'agit d'une plateforme authentique, développée de zéro dans le quartier de Capimarinho, à Afuá-PA. C'est un projet 100% Open-Source (licence AGPL), créé pour que d'autres développeurs puissent contribuer, améliorer le code et bâtir un héritage technologique, collaboratif et durable pour notre communauté."
       },
       {
         q: "Comment commander un bicitaxi ?",
@@ -206,6 +206,74 @@ const translations = {
     brandTag: "Afuá",
     brandSubtitle: "Capitale du Vélo",
     openApp: "Ouvrir l'App"
+  },
+  es: {
+    badge: "PROYECTO OPEN SOURCE",
+    badgeSub: "Comunidad • Cero Comisiones",
+    title: "La movilidad urbana local repensada.",
+    titleHighlight: "Venecia del Marajó",
+    subtitle: "Sin tarifas ocultas. Solicita un conductor en tiempo real a través de las calles y pasarelas de Afuá.",
+    btnCall: "Pedir un BiciTaxi",
+    btnDriver: "Ser Conductor",
+    installApp: "Instalar en el Celular",
+    statEcological: "100% Ecológico",
+    statEcologicalDesc: "Cero emisiones de CO2 en las pasarelas",
+    statFees: "Sin Comisiones",
+    statFeesDesc: "100% de las ganancias para el conductor",
+    statDirect: "WhatsApp y Tiempo Real",
+    statDirectDesc: "Contacto directo y sin fricción",
+    statVerified: "Conductores Verificados",
+    statVerifiedDesc: "Profesionales locales aprobados para tu seguridad",
+    howItWorksTag: "SIMPLICIDAD TOTAL",
+    howItWorks: "Cómo Funciona",
+    step1Title: "1. Elige tu Ruta",
+    step1Desc: "Abre la aplicación en el navegador, indica tu origen y destino o mira la lista de conductores disponibles.",
+    step2Title: "2. Pide en Segundos",
+    step2Desc: "Lanza la solicitud en tiempo real al sistema o habla directamente por WhatsApp con el conductor en un toque.",
+    step3Title: "3. Viaje Ecológico",
+    step3Desc: "El bicitaxista te busca por las pasarelas de madera de Afuá. Viaje limpio, seguro y con pago directo al conductor.",
+    step4Title: "4. Paga Directamente al Conductor",
+    step4Desc: "Sin intermediarios. Acuerda el precio y paga directamente al bicitaxista al final de la carrera, fortaleciendo la economía local.",
+    faqTag: "RESUELVE TUS DUDAS",
+    faqTitle: "Preguntas Frecuentes",
+    faqs: [
+      {
+        q: "¿Qué es el proyecto BiciTaxi?",
+        a: "El proyecto nació como un trabajo de fin de grado en Ingeniería de Software, enfocado en revolucionar la movilidad urbana local ofreciendo una nueva forma de solicitar los famosos bicitáxis. A diferencia de las aplicaciones genéricas o *white label*, esta es una plataforma auténtica desarrollada desde cero en el barrio de Capimarinho, en Afuá-PA. Es un proyecto 100% Open-Source (licencia AGPL), creado para que otros desarrolladores puedan contribuir, mejorar el código y construir un legado tecnológico, colaborativo y sostenible para nuestra comunidad."
+      },
+      {
+        q: "¿Cómo pido un bicitáxi?",
+        a: "Solo tienes que hacer clic en el botón verde 'Pedir un BiciTaxi' en la página de inicio. A partir de ahí, tendrás dos opciones:\n\n1. Solicitar ahora: El sistema envía un aviso instantáneo a todos los bicitaxistas disponibles en ese momento. El primero en aceptar hará tu carrera.\n\n2. Elegir un bicitaxista: La aplicación muestra una lista en tiempo real de quién está libre. Así, puedes elegir a tu conductor favorito y llamarlo directamente, eliminando la confusión de los grupos de WhatsApp donde nunca se sabe quién está trabajando realmente."
+      },
+      {
+        q: "¿BiciTaxi cobra alguna comisión o tarifa?",
+        a: "¡Cero tarifas! BiciTaxi es una iniciativa de código abierto (Open Source) y comunitaria desarrollada para valorar la movilidad en Afuá. El 100% del valor de la carrera es para el bicitaxista."
+      },
+      {
+        q: "¿Necesito descargar una aplicación en Play Store o App Store?",
+        a: "No. Para facilitar el acceso rápido, BiciTaxi funciona directamente en el navegador de cualquier celular. Una vez que la plataforma haya sido validada y probada exhaustivamente por la comunidad en las calles, planeamos lanzar versiones nativas en las tiendas de aplicaciones."
+      },
+      {
+        q: "¿Cómo empiezan a atender los bicitaxistas?",
+        a: "En el Área del Conductor, el profesional se registra indicando su teléfono, nombre y placa. Después de la aprobación del administrador, recibe un PIN exclusivo de acceso."
+      },
+      {
+        q: "¿Pueden usarlo visitantes y turistas con números extranjeros?",
+        a: "¡Sí! Nuestro sistema cuenta con soporte completo para el estándar internacional E.164 con selector de código de país, permitiendo llamadas con números de Brasil (+55), Guayana Francesa (+594), Francia (+33), EE. UU. (+1) y muchos otros."
+      }
+    ],
+    footerSubtitle: "Movilidad ecológica comunitaria para las pasarelas de la Isla de Marajó, Pará.",
+    terms: "Términos de Uso",
+    privacy: "Privacidad",
+    driverArea: "Área del Conductor",
+    adminArea: "Administrador",
+    devCredit: "Proyecto Open Source • Desarrollado por Herivelto Sarges",
+    termsTitle: "Términos de Uso",
+    privacyTitle: "Política de Privacidad",
+    modalClose: "Entendido",
+    brandTag: "Afuá",
+    brandSubtitle: "Capital de las Bicicletas",
+    openApp: "Abrir App"
   }
 };
 
@@ -360,7 +428,7 @@ export default function LandingPage({ onNavigate }) {
             }}
             aria-label="Language selector"
           >
-            {["pt", "en", "fr"].map((item) => {
+            {["pt", "en", "fr", "es"].map((item) => {
               const isActive = lang === item;
               return (
                 <button
